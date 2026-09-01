@@ -71,10 +71,10 @@ Esto les permitirá comparar **AG puro (exploración)** vs **AG + búsqueda loca
 
 Usen las instancias estándar de la literatura, con óptimos/mejores valores conocidos publicados, disponibles en:
 
-* Repositorio 1
-* Repositorio 2
-* Mejores Resultados
-* Artículo Estado del Arte
+* [Repositorio 1](https://figshare.com/articles/dataset/Flowshop_instances/26485930?file=48152884)
+* [Repositorio 2](https://github.com/arnaud-m/pisco/tree/master/pisco-shop/src/main/benchmarks/instances/flow-shop/taillard)
+* [Mejores Resultados](https://zenodo.org/records/17028980)
+* [Artículo Estado del Arte](https://hal.science/hal-03689608v1/document)
 
 **Formato de los archivos:** Cada archivo contiene varias instancias. Para cada una encontrarán:
 
