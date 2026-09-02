@@ -1,5 +1,42 @@
 # Metaheuristicos
 
+## Entorno virtual y dependencias
+
+Requisito: **Python 3.10+**. El núcleo de los algoritmos (permutaciones, `random`, `argparse`) puede ir en la biblioteca estándar; las librerías de abajo cubren cálculo vectorizado, resultados del informe y tests estadísticos.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Para desactivar el entorno: `deactivate`.
+
+**Incluidas en `requirements.txt`:**
+
+| Paquete | Uso en este proyecto |
+| :---- | :---- |
+| `numpy` | Matriz $p_{i,j}$, makespan y operaciones sobre cromosomas |
+| `pandas` | Tablas de RPD, mejores $C_{\max}$ y exportación a CSV/LaTeX |
+| `matplotlib` | Curvas de convergencia y comparaciones AG vs memético |
+| `seaborn` | Boxplots / violines para el análisis experimental |
+| `scipy` | Tests no paramétricos (p. ej. Wilcoxon, Mann–Whitney) |
+| `tqdm` | Barra de progreso en corridas largas (Taillard $100\times10$, $200\times20$) |
+
+**Opcionales (no están en el archivo; instalar solo si las necesitan):**
+
+```bash
+pip install jupyterlab pytest tabulate deap
+```
+
+* `jupyterlab` — notebooks para explorar instancias y graficar sin tocar el CLI.
+* `pytest` — pruebas unitarias del parser de Taillard y del cálculo de $C_{\max}$.
+* `tabulate` — tablas en consola (`pandas.DataFrame.to_markdown` también sirve).
+* `deap` — framework de AG; **no es necesario**: el enunciado pide operadores propios y reutilizables. Útil solo como referencia, no como dependencia del entregable.
+
+No hace falta `scikit-learn` ni `tensorflow`/`pytorch`: no hay aprendizaje automático. `numba` o `cython` solo tendrían sentido si el makespan se vuelve el cuello de botella en instancias grandes.
+
 # Proyecto: Permutation Flow Shop Scheduling Problem (PFSP)
 
 ## Resolución mediante Algoritmos Evolutivos
