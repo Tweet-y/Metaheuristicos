@@ -4,6 +4,7 @@
 
 ## Resolución mediante Algoritmos Evolutivos
 
+
 ### 1. Introducción y motivación
 
 Imagina una fábrica textil donde cada pedido (trabajo) debe pasar, en el mismo orden, por una serie de estaciones: corte $\rightarrow$ costura $\rightarrow$ planchado $\rightarrow$ empaquetado. Cada estación es una máquina, y cada trabajo tarda un tiempo distinto en cada una de ellas.
@@ -156,3 +157,9 @@ El trabajo debe ser 100% original (no copiado de internet ni de un compañero) �
 
 * Taillard, E. (1993). *Benchmarks for basic scheduling problems*. European Journal of Operational Research.
 * Reeves, C. R. (1995). *A genetic algorithm for flowshop sequencing*. Computers & Operations Research.
+
+## Ejecución
+
+```bash
+python algoritmoGenetico.py data/ins_20_5_00.txt 20 0.95 0.05 100 1 resultado1.csv
+```
