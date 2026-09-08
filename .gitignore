@@ -11,4 +11,4 @@ tests/
 pytest.ini
 meta2.md
 results/
-
+local/
