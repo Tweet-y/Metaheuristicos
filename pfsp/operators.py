@@ -1,4 +1,11 @@
-"""Operadores del AG según el material de clases (ruleta, OX, mutación por permutación)."""
+"""Biblioteca de operadores genéticos para representación por permutación.
+
+Selección: `torneo_binario` (la que usa el AG) y `ruleta` proporcional a λ=1/Cmax,
+conservada como alternativa del material de clases y como término de comparación
+en el informe: sobre instancias de Taillard los Cmax de una población difieren
+pocos puntos porcentuales, así que la ruleta reparte probabilidades casi uniformes
+(presión de selección ≈ 1) y degenera en selección aleatoria.
+"""
 
 from __future__ import annotations
 
@@ -33,6 +40,14 @@ def ruleta(rng, poblacion, lambdas) -> list[int]:
         if u <= acc:
             return list(ind)
     return list(poblacion[-1])
+
+
+def torneo_binario(rng, poblacion, cmaxs, k: int = 2) -> list[int]:
+    """Selección por torneo de tamaño k (minimiza makespan / cmax)."""
+    n = len(poblacion)
+    aspirantes = [rand_int(rng, 0, n - 1) for _ in range(k)]
+    mejor_idx = min(aspirantes, key=lambda i: cmaxs[i])
+    return list(poblacion[mejor_idx])
 
 
 def ox_with_cuts(p1, p2, start: int, end: int) -> tuple[list[int], list[int]]:
