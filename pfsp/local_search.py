@@ -14,26 +14,21 @@ def insertion_search(perm, p, rng, intensity: int) -> tuple[list[int], int]:
     if n < 2 or intensity <= 0:
         return current, evals
 
-    for _ in range(intensity):
-        order = list(range(n))
-        rng.shuffle(order)
-        moved = False
-        for i in order:
-            job = current[i]
-            without = current[:i] + current[i + 1 :]
-            for pos in range(n):
-                if pos == i:
-                    continue
-                trial = without[:pos] + [job] + without[pos:]
-                cm = cmax(trial, p)
-                evals += 1
-                if cm < best:
-                    current = trial
-                    best = cm
-                    moved = True
-                    break
-            if moved:
+    k_jobs = min(intensity, n)
+    order = list(range(n))
+    rng.shuffle(order)
+
+    for i in order[:k_jobs]:
+        job = current[i]
+        without = current[:i] + current[i + 1 :]
+        for pos in range(n):
+            if pos == i:
+                continue
+            trial = without[:pos] + [job] + without[pos:]
+            cm = cmax(trial, p)
+            evals += 1
+            if cm < best:
+                current = trial
+                best = cm
                 break
-        if not moved:
-            break
     return current, evals
