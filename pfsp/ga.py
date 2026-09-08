@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from pfsp.makespan import cmax
+from pfsp.makespan import as_rows, cmax_rows
+from pfsp.neh import neh
 from pfsp.operators import (
-    aptitud,
     init_population,
     mutar_intercambio,
     ox_crossover,
     reemplazo_generacional,
-    ruleta,
+    torneo_binario,
 )
 from pfsp.rng import rand_float, seeded_rng
 
@@ -24,12 +24,6 @@ class GAResult:
     historial: list[int] = field(default_factory=list)
 
 
-def _evaluar(poblacion, p):
-    cmaxs = [cmax(ind, p) for ind in poblacion]
-    lambdas = [aptitud(cm) for cm in cmaxs]
-    return cmaxs, lambdas
-
-
 def run(
     p,
     seed: int,
@@ -40,15 +34,27 @@ def run(
     max_evaluations: int | None = None,
     n_elite: int = 1,
     after_mutate=None,
+    after_generation=None,
+    use_neh: bool = True,
+    seed_perm: list[int] | None = None,
 ) -> GAResult:
+    """Ciclo generacional del AG.
+
+    `seed_perm`: secuencia ya construida con NEH. Si se omite y `use_neh`, se
+    calcula aquí; pasarla evita recalcular NEH en cada réplica de una misma
+    instancia (el experimento lo hace una vez por instancia).
+    """
     rng = seeded_rng(seed)
-    n = int(p.shape[1])
+    rows = as_rows(p)
+    n = len(rows[0])
 
     # 1: Generar una población inicial de individuos
     poblacion = init_population(rng, n, pop_size)
+    if pop_size > 0 and (seed_perm is not None or use_neh):
+        poblacion[0] = list(seed_perm) if seed_perm is not None else neh(rows)
 
     # 2: Evaluar la aptitud de cada individuo en la población inicial
-    cmaxs, lambdas = _evaluar(poblacion, p)
+    cmaxs = [cmax_rows(ind, rows) for ind in poblacion]
     evaluaciones = pop_size
     best_i = min(range(pop_size), key=lambda i: cmaxs[i])
     best_perm = list(poblacion[best_i])
@@ -69,9 +75,9 @@ def run(
             if max_evaluations is not None and evaluaciones >= max_evaluations:
                 break
 
-            # 5: Seleccionar individuos (ruleta: a mayor aptitud, mayor probabilidad)
-            p1 = ruleta(rng, poblacion, lambdas)
-            p2 = ruleta(rng, poblacion, lambdas)
+            # 5: Seleccionar individuos (torneo binario: gana el de menor Cmax)
+            p1 = torneo_binario(rng, poblacion, cmaxs)
+            p2 = torneo_binario(rng, poblacion, cmaxs)
 
             # 6: Aplicar cruza a los padres (no todos cruzan: probabilidad pc)
             if rand_float(rng) < pc:
@@ -85,9 +91,10 @@ def run(
             if rand_float(rng) < pm:
                 c2 = mutar_intercambio(rng, c2)
 
+            # 7b: Gancho del memético (búsqueda local lamarckiana sobre el hijo)
             if after_mutate is not None:
-                c1, extra1 = after_mutate(c1, p, rng, generation=gen)
-                c2, extra2 = after_mutate(c2, p, rng, generation=gen)
+                c1, extra1 = after_mutate(c1, rows, rng, generation=gen)
+                c2, extra2 = after_mutate(c2, rows, rng, generation=gen)
                 evaluaciones += extra1 + extra2
 
             # 8: Evaluar la aptitud de cada individuo en la descendencia
@@ -96,7 +103,7 @@ def run(
                     break
                 if max_evaluations is not None and evaluaciones >= max_evaluations:
                     break
-                cm = cmax(child, p)
+                cm = cmax_rows(child, rows)
                 evaluaciones += 1
                 hijos.append(child)
                 cmax_hijos.append(cm)
@@ -111,8 +118,18 @@ def run(
         poblacion, cmaxs = reemplazo_generacional(
             poblacion, cmaxs, hijos, cmax_hijos, n_elite=n_elite
         )
-        lambdas = [aptitud(cm) for cm in cmaxs]
         gen_best = min(cmaxs)
+        if after_generation is not None:
+            best_idx = cmaxs.index(gen_best)
+            mej_ind, extra = after_generation(poblacion[best_idx], rows, rng, generation=gen)
+            evaluaciones += extra
+            mej_c = cmax_rows(mej_ind, rows)
+            evaluaciones += 1
+            if mej_c < cmaxs[best_idx]:
+                poblacion[best_idx] = mej_ind
+                cmaxs[best_idx] = mej_c
+                gen_best = mej_c
+
         if gen_best < best_c:
             best_c = gen_best
             best_perm = list(poblacion[cmaxs.index(gen_best)])
