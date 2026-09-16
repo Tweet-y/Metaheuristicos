@@ -161,5 +161,5 @@ El trabajo debe ser 100% original (no copiado de internet ni de un compañero) �
 ## Ejecución
 
 ```bash
-python algoritmoGenetico.py data/ins_20_5_00.txt 20 0.95 0.05 100 1 resultado1.csv
+python algoritmoGenetico.py data/ins_20_10_01.txt 300 0.8 0.3 5000 1 r_ins_20_10_01.csv 
 ```

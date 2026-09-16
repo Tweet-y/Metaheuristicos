@@ -69,8 +69,6 @@ def inicializar_poblacion(f, c):
     return pobla
 
 poblacion = inicializar_poblacion(tam_pobla, num_job)
-print("Población Inicial:")
-print(poblacion)
 
 tiempo_proceso_fin = time.process_time()
 
@@ -91,9 +89,9 @@ def evaluar_poblacion(poblacion, matriz, num_maq):
     return fitness 
 
 fitness_poblacion = evaluar_poblacion(poblacion, matriz, num_maq)                                                                                                                                 
-print("Fitness (Makespan) de cada individuo:")                                                                                                                                                    
-print(fitness_poblacion)                                                                                                                                                                          
-print(f"Mejor inicial: {np.min(fitness_poblacion)}")
+## print("Fitness (Makespan) de cada individuo:")                                                                                                                                                    
+## print(fitness_poblacion)                                                                                                                                                                          
+## print(f"Mejor inicial: {np.min(fitness_poblacion)}")
 
 def seleccion_torneo(poblacion, fitness, k=2):                                                                                                                                                    
     indices_aspirantes = np.random.randint(0, len(poblacion), size=k)                                                                                                                             
@@ -103,8 +101,8 @@ def seleccion_torneo(poblacion, fitness, k=2):
 ## selección
 padre1 = seleccion_torneo(poblacion, fitness_poblacion)                                                                                                                                           
 padre2 = seleccion_torneo(poblacion, fitness_poblacion)                                                                                                                                           
-print("Padre 1 seleccionado:", padre1, "Makespan:", calcular_makespan(padre1, matriz, num_maq))                                                                                                   
-print("Padre 2 seleccionado:", padre2, "Makespan:", calcular_makespan(padre2, matriz, num_maq)) 
+## print("Padre 1 seleccionado:", padre1, "Makespan:", calcular_makespan(padre1, matriz, num_maq))                                                                                                   
+## print("Padre 2 seleccionado:", padre2, "Makespan:", calcular_makespan(padre2, matriz, num_maq)) 
 
 ## Cruce
 
@@ -140,8 +138,8 @@ def cruce_ox(padre1, padre2, prob_c):
     return hijo1, hijo2 
 
 hijo1, hijo2 = cruce_ox(padre1, padre2, prob_c)                                                                                                                                                   
-print("Hijo 1:", hijo1, "Makespan:", calcular_makespan(hijo1, matriz, num_maq))                                                                                                                   
-print("Hijo 2:", hijo2, "Makespan:", calcular_makespan(hijo2, matriz, num_maq))     
+## print("Hijo 1:", hijo1, "Makespan:", calcular_makespan(hijo1, matriz, num_maq))                                                                                                                   
+## print("Hijo 2:", hijo2, "Makespan:", calcular_makespan(hijo2, matriz, num_maq))     
 
 ## Mutación
 
@@ -156,8 +154,8 @@ def mutacion_swap(individuo, prob_m):
     return individuo.copy()  
 
 hijo1_mutado = mutacion_swap(hijo1, prob_m=1.0)  # Forzamos 1.0 solo para ver el swap                                                                                                             
-print("Hijo 1 original:", hijo1)                                                                                                                                                                  
-print("Hijo 1 mutado:  ", hijo1_mutado, "Makespan:", calcular_makespan(hijo1_mutado, matriz, num_maq))  
+## print("Hijo 1 original:", hijo1)                                                                                                                                                                  
+## print("Hijo 1 mutado:  ", hijo1_mutado, "Makespan:", calcular_makespan(hijo1_mutado, matriz, num_maq))  
 
 ## Algoritmo Genético
 
@@ -171,7 +169,7 @@ def ejecutar_algoritmo_genetico(tam_pobla, prob_c, prob_m, iteraciones, matriz, 
     mejor_solucion = poblacion[idx_mejor].copy()                                                                                                                                                  
     mejor_makespan = fitness[idx_mejor]                                                                                                                                                           
 
-    print(f"Generación 0: Mejor Makespan = {mejor_makespan}")                                                                                                                                     
+    ## print(f"Generación 0: Mejor Makespan = {mejor_makespan}")                                                                                                                                     
 
     # 2. Bucle generacional                                                                                                                                                                       
     for gen in range(1, iteraciones + 1):                                                                                                                                                         
@@ -206,7 +204,7 @@ def ejecutar_algoritmo_genetico(tam_pobla, prob_c, prob_m, iteraciones, matriz, 
             mejor_solucion = poblacion[np.argmin(fitness)].copy()                                                                                                                                 
 
         # Imprimir avance cada 10 generaciones o en la última                                                                                                                                     
-        if gen % 10 == 0 or gen == iteraciones:                                                                                                                                                   
+        if gen % 1000 == 0 or gen == iteraciones:                                                                                                                                                   
             print(f"Generación {gen}/{iteraciones}: Mejor Makespan = {mejor_makespan}")                                                                                                           
 
     return mejor_solucion, mejor_makespan  
@@ -223,7 +221,8 @@ tiempo_total = tiempo_fin - tiempo_inicio
 rpd = ((mejor_mk - lim_inf) / lim_inf) * 100                                                                                                                                                      
 
 print("\n" + "=" * 50)                                                                                                                                                                            
-print("RESULTADOS FINALES ALGORITMO GENÉTICO:")                                                                                                                                                   
+print("RESULTADOS FINALES ALGORITMO GENÉTICO:")  
+print(f"Semilla: {semilla}")                                                                                                                                                 
 print(f"Mejor secuencia encontrada: {mejor_sol}")                                                                                                                                                 
 print(f"Makespan obtenido:          {mejor_mk}")                                                                                                                                                  
 print(f"Upper Bound conocido:       {lim_inf}")                                                                                                                                                   
