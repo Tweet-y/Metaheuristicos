@@ -12,25 +12,25 @@ import numpy as np
 
 # Configuración del experimento
 PYTHON_EXEC = sys.executable  # Usa el mismo python del entorno activo (.venv si existe)
-SCRIPT_AG = "algoritmoMemetico.py"
+SCRIPT_AG = "algoritmoGenetico.py"
 
 # Archivo de datos a probar (el primero del conjunto de datos)
 INSTANCIA = "data/ins_20_5_00.txt"
 
 # Parámetros genéticos
-TAM_POBLA = 100
+TAM_POBLA = 60
 PROB_CRUCE = 0.85
 PROB_MUTA = 0.20
 
 # Lista de iteraciones que quieres evaluar para el informe
 # Puedes modificar o agregar los valores que necesites
-LISTA_ITERACIONES = [100, 250, 500, 1000, 1500, 2000, 3000]
+LISTA_ITERACIONES = [300]
 
 # Semillas para tener significancia estadística (e.g. 5 corridas por cada número de iteraciones)
-SEMILLAS = [1, 7, 42, 123, 999]
+SEMILLAS = [1, 7, 21, 42, 53]
 
 # Archivo CSV de salida donde se concentrarán todas las ejecuciones
-ARCHIVO_SALIDA = "results/experimento_iteraciones.csv"
+ARCHIVO_SALIDA = "results/r_g_ins_20_5_00.csv"
 
 
 def main():
