@@ -4,6 +4,7 @@ import time
 import sys
 import csv
 import os
+import random
 
 if len(sys.argv) == 8:
     entrada = entrada = sys.argv[1]
@@ -35,11 +36,12 @@ with open(entrada, "r") as f:
     num_maq = int(primera_linea[1])
     lim_inf = int(primera_linea[3])
     lim_sup = int(primera_linea[4])
-    matriz = np.loadtxt(f, dtype=int)
+    matriz = np.loadtxt(f, dtype=int).tolist()
 print(f"P1: {num_job}, P2: {num_maq}, P3: {lim_inf}, P4: {lim_sup}")
-print(matriz)
+print(np.array(matriz))
 
 np.random.seed(semilla)
+random.seed(semilla)
 
 ## Guardar resultado
 
@@ -68,19 +70,16 @@ def inicializar_poblacion(f, c):
         np.random.shuffle(pobla[i])
     return pobla
 
-poblacion = inicializar_poblacion(tam_pobla, num_job)
-
-tiempo_proceso_fin = time.process_time()
-
 def calcular_makespan(individuo, matriz, num_maq):                                                                                                                                                
-        tiempos_maquinas = np.zeros(num_maq, dtype=int)                                                                                                                                               
-        for trabajo in individuo:                                                                                                                                                                     
-            tiempos_maquinas[0] += matriz[0, trabajo]                                                                                                                                                 
-            for m in range(1, num_maq):                                                                                                                                                               
-                if tiempos_maquinas[m] < tiempos_maquinas[m - 1]:                                                                                                                                     
-                    tiempos_maquinas[m] = tiempos_maquinas[m - 1]                                                                                                                                     
-                tiempos_maquinas[m] += matriz[m, trabajo]                                                                                                                                             
-        return tiempos_maquinas[-1]                                                                                                                                                                   
+    tiempos_maquinas = [0] * num_maq
+    for trabajo in individuo:                                                                                                                                                                     
+        tiempos_maquinas[0] += matriz[0][trabajo]                                                                                                                                                 
+        for m in range(1, num_maq):                                                                                                                                                               
+            prev = tiempos_maquinas[m - 1]
+            if tiempos_maquinas[m] < prev:                                                                                                                                     
+                tiempos_maquinas[m] = prev                                                                                                                                     
+            tiempos_maquinas[m] += matriz[m][trabajo]                                                                                                                                             
+    return tiempos_maquinas[-1]                                                                                                                                                                   
 
 def evaluar_poblacion(poblacion, matriz, num_maq):                                                                                                                                                
     fitness = np.zeros(len(poblacion), dtype=int)                                                                                                                                                 
@@ -88,32 +87,21 @@ def evaluar_poblacion(poblacion, matriz, num_maq):
         fitness[i] = calcular_makespan(ind, matriz, num_maq)                                                                                                                                      
     return fitness 
 
-fitness_poblacion = evaluar_poblacion(poblacion, matriz, num_maq)                                                                                                                                 
-## print("Fitness (Makespan) de cada individuo:")                                                                                                                                                    
-## print(fitness_poblacion)                                                                                                                                                                          
-## print(f"Mejor inicial: {np.min(fitness_poblacion)}")
-
 def seleccion_torneo(poblacion, fitness, k=2):                                                                                                                                                    
     indices_aspirantes = np.random.randint(0, len(poblacion), size=k)                                                                                                                             
     mejor_idx = indices_aspirantes[np.argmin(fitness[indices_aspirantes])]                                                                                                                        
     return poblacion[mejor_idx].copy()
 
-## selección
-padre1 = seleccion_torneo(poblacion, fitness_poblacion)                                                                                                                                           
-padre2 = seleccion_torneo(poblacion, fitness_poblacion)                                                                                                                                           
-## print("Padre 1 seleccionado:", padre1, "Makespan:", calcular_makespan(padre1, matriz, num_maq))                                                                                                   
-## print("Padre 2 seleccionado:", padre2, "Makespan:", calcular_makespan(padre2, matriz, num_maq)) 
-
 ## Cruce
 
 def cruce_ox(padre1, padre2, prob_c):                                                                                                                                                             
     # Si no ocurre el cruce por probabilidad, los hijos son copias de los padres                                                                                                                  
-    if np.random.rand() > prob_c:                                                                                                                                                                 
+    if random.random() > prob_c:                                                                                                                                                                 
         return padre1.copy(), padre2.copy()                                                                                                                                                       
 
     n = len(padre1)                                                                                                                                                                               
     # Seleccionar dos puntos de corte distintos                                                                                                                                                   
-    c1, c2 = sorted(np.random.choice(n, size=2, replace=False))                                                                                                                                   
+    c1, c2 = sorted(random.sample(range(n), 2))                                                                                                                                   
 
     def generar_hijo(p1, p2):                                                                                                                                                                     
         hijo = np.full(n, -1, dtype=int)                                                                                                                                                          
@@ -137,25 +125,34 @@ def cruce_ox(padre1, padre2, prob_c):
     hijo2 = generar_hijo(padre2, padre1)                                                                                                                                                          
     return hijo1, hijo2 
 
-hijo1, hijo2 = cruce_ox(padre1, padre2, prob_c)                                                                                                                                                   
-## print("Hijo 1:", hijo1, "Makespan:", calcular_makespan(hijo1, matriz, num_maq))                                                                                                                   
-## print("Hijo 2:", hijo2, "Makespan:", calcular_makespan(hijo2, matriz, num_maq))     
-
 ## Mutación
 
 def mutacion_swap(individuo, prob_m):                                                                                                                                                             
     # mutar solo si se cumple la probabilidad                                                                                                                                                     
-    if np.random.rand() < prob_m:                                                                                                                                                                 
+    if random.random() < prob_m:                                                                                                                                                                 
         mutado = individuo.copy()                                                                                                                                                                 
         n = len(mutado)                                                                                                                                                                           
-        i, j = np.random.choice(n, size=2, replace=False)                                                                                                                                         
+        i, j = random.sample(range(n), 2)                                                                                                                                         
         mutado[i], mutado[j] = mutado[j], mutado[i]                                                                                                                                               
         return mutado                                                                                                                                                                             
     return individuo.copy()  
 
-hijo1_mutado = mutacion_swap(hijo1, prob_m=1.0)  # Forzamos 1.0 solo para ver el swap                                                                                                             
-## print("Hijo 1 original:", hijo1)                                                                                                                                                                  
-## print("Hijo 1 mutado:  ", hijo1_mutado, "Makespan:", calcular_makespan(hijo1_mutado, matriz, num_maq))  
+def mutacion_insercion(individuo, prob_m):
+    # Toma un trabajo y lo inserta en otra posición (desplazamiento)
+    if random.random() < prob_m:
+        mutado = list(individuo)
+        n = len(mutado)
+        i, j = random.sample(range(n), 2)
+        trabajo = mutado.pop(i)
+        mutado.insert(j, trabajo)
+        return np.array(mutado, dtype=int)
+    return individuo.copy()
+
+def mutar_individuo(individuo, prob_m):
+    # Aplica swap o inserción de manera probabilística para enriquecer la exploración
+    if random.random() < 0.5:
+        return mutacion_swap(individuo, prob_m)
+    return mutacion_insercion(individuo, prob_m)
 
 ## Algoritmo Genético
 
@@ -174,10 +171,12 @@ def ejecutar_algoritmo_genetico(tam_pobla, prob_c, prob_m, iteraciones, matriz, 
     # 2. Bucle generacional                                                                                                                                                                       
     for gen in range(1, iteraciones + 1):                                                                                                                                                         
         nueva_poblacion = []                                                                                                                                                                      
+        nuevo_fitness = []
 
-        # Elitismo: preservamos al mejor individuo de la generación                                                                                                                               
+        # Elitismo: preservamos al mejor individuo y su fitness sin reevaluarlo                                                                                                                               
         idx_elite = np.argmin(fitness)                                                                                                                                                            
         nueva_poblacion.append(poblacion[idx_elite].copy())                                                                                                                                       
+        nuevo_fitness.append(fitness[idx_elite])
 
         # Generar descendencia hasta completar el tamaño de población                                                                                                                             
         while len(nueva_poblacion) < tam_pobla:                                                                                                                                                   
@@ -186,16 +185,19 @@ def ejecutar_algoritmo_genetico(tam_pobla, prob_c, prob_m, iteraciones, matriz, 
 
             hijo1, hijo2 = cruce_ox(padre1, padre2, prob_c)                                                                                                                                       
 
-            hijo1 = mutacion_swap(hijo1, prob_m)                                                                                                                                                  
-            hijo2 = mutacion_swap(hijo2, prob_m)                                                                                                                                                  
+            hijo1 = mutar_individuo(hijo1, prob_m)                                                                                                                                                  
+            hijo2 = mutar_individuo(hijo2, prob_m)                                                                                                                                                  
 
             nueva_poblacion.append(hijo1)                                                                                                                                                         
+            nuevo_fitness.append(calcular_makespan(hijo1, matriz, num_maq))
+
             if len(nueva_poblacion) < tam_pobla:                                                                                                                                                  
                 nueva_poblacion.append(hijo2)                                                                                                                                                     
+                nuevo_fitness.append(calcular_makespan(hijo2, matriz, num_maq))
 
-        # Actualizar población y evaluar                                                                                                                                                          
+        # Actualizar población y fitness directamente sin evaluar el élite de nuevo                                                                                                                          
         poblacion = np.array(nueva_poblacion)                                                                                                                                                     
-        fitness = evaluar_poblacion(poblacion, matriz, num_maq)                                                                                                                                   
+        fitness = np.array(nuevo_fitness, dtype=int)
 
         # Actualizar mejor histórico si hubo mejora                                                                                                                                               
         min_gen = np.min(fitness)                                                                                                                                                                 
@@ -203,7 +205,7 @@ def ejecutar_algoritmo_genetico(tam_pobla, prob_c, prob_m, iteraciones, matriz, 
             mejor_makespan = min_gen                                                                                                                                                              
             mejor_solucion = poblacion[np.argmin(fitness)].copy()                                                                                                                                 
 
-        # Imprimir avance cada 10 generaciones o en la última                                                                                                                                     
+        # Imprimir avance cada 1000 generaciones o en la última                                                                                                                                     
         if gen % 1000 == 0 or gen == iteraciones:                                                                                                                                                   
             print(f"Generación {gen}/{iteraciones}: Mejor Makespan = {mejor_makespan}")                                                                                                           
 
