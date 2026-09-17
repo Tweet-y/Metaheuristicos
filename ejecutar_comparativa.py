@@ -1,137 +1,107 @@
 #!/usr/bin/env python3
-"""
-Script de Comparativa Experimental para PFSP: AG Puro vs Algoritmo Memético.
-Diseñado para generar la matriz completa de resultados para el informe IEEE.
-Evalúa 3 tamaños de problemas (Pequeño, Mediano, Grande) con múltiples semillas.
+"""Batería experimental comparando el Algoritmo Genético con el Memético.
+
+Corre los dos algoritmos sobre tres tamaños de instancia y varias semillas, y
+deja dos archivos: uno con el resultado de cada corrida y otro con la traza de
+convergencia (en qué generación se halló cada mejora), que es lo que consume
+`generar_graficos.py`.
+
+Uso: python ejecutar_comparativa.py
 """
 
-import subprocess
-import sys
-import os
 import csv
+import os
+import random
 import time
 
-PYTHON_EXEC = sys.executable
+from pfsp.ga import ejecutar_evolutivo
+from pfsp.instance import leer_instancia_taillard
 
-# 1. Definición de Instancias (3 tamaños para analizar escalabilidad)
 INSTANCIAS = [
-    {"nombre": "Pequeña (20x5)",   "archivo": "data/ins_20_5_00.txt"},
-    {"nombre": "Mediana (50x10)",  "archivo": "data/ins_50_10_00.txt"},
-    {"nombre": "Grande (100x10)",  "archivo": "data/ins_100_10_00.txt"},
+    ("Pequeña (20x5)",   "data/ins_20_5_00.txt"),
+    ("Mediana (50x10)",  "data/ins_50_10_00.txt"),
+    ("Grande (100x10)",  "data/ins_100_10_00.txt"),
 ]
 
-# 2. Parámetros de los algoritmos
+ALGORITMOS = [("AG", False), ("Memetico", True)]
+
 TAM_POBLA = 60
 PROB_CRUCE = 0.85
 PROB_MUTA = 0.20
 ITERACIONES = 300
+SEMILLAS = list(range(1, 11))
 
-# 3. Semillas para significancia estadística (5 corridas por combinación)
-SEMILLAS = [1, 7, 21, 42, 53]
-
-# 4. Archivos de salida
-ARCHIVO_SALIDA = "results/comparativa_ag_vs_memetico.csv"
+ARCHIVO_RESULTADOS = "results/comparativa_ag_vs_memetico.csv"
+ARCHIVO_TRAZA = "results/traza_convergencia.csv"
 
 
 def ejecutar():
     os.makedirs("results", exist_ok=True)
+    total = len(ALGORITMOS) * len(INSTANCIAS) * len(SEMILLAS)
 
-    # Si el archivo ya existía, lo reiniciamos con su encabezado
-    with open(ARCHIVO_SALIDA, mode="w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter=";")
-        writer.writerow([
-            "Algoritmo", "Tamano_Problema", "Instancia", "Semilla", "Poblacion",
-            "Prob_Cruce", "Prob_Mutacion", "Iteraciones", "Makespan",
-            "Upper_Bound", "RPD_%", "Tiempo_Seg", "Mejor_Secuencia"
-        ])
+    print("=" * 78)
+    print(" BATERÍA EXPERIMENTAL: ALGORITMO GENÉTICO vs ALGORITMO MEMÉTICO")
+    print(f" Instancias:     {[nombre for nombre, _ in INSTANCIAS]}")
+    print(f" Población:      {TAM_POBLA} | Iteraciones: {ITERACIONES}")
+    print(f" Cruce:          {PROB_CRUCE} | Mutación: {PROB_MUTA}")
+    print(f" Semillas:       {SEMILLAS}")
+    print(f" Total corridas: {total}")
+    print("=" * 78)
 
-    algoritmos = [
-        ("AG_Puro", "algoritmoGenetico.py"),
-        ("Memetico", "algoritmoMemetico.py")
-    ]
-
-    total_pruebas = len(algoritmos) * len(INSTANCIAS) * len(SEMILLAS)
+    filas_resultado = []
+    filas_traza = []
     contador = 0
-    t_global_inicio = time.time()
+    inicio_global = time.perf_counter()
 
-    print("=" * 80)
-    print(" INICIANDO BATERÍA DE EXPERIMENTOS: AG PURO vs ALGORITMO MEMÉTICO")
-    print(f" Instancias:    {[ins['nombre'] for ins in INSTANCIAS]}")
-    print(f" Población:     {TAM_POBLA} | Iteraciones: {ITERACIONES}")
-    print(f" Cruce:         {PROB_CRUCE} | Mutación: {PROB_MUTA}")
-    print(f" Semillas:      {SEMILLAS}")
-    print(f" Total corridas:{total_pruebas}")
-    print(f" Archivo CSV:   {ARCHIVO_SALIDA}")
-    print("=" * 80)
-
-    # Archivo temporal para cada corrida individual
-    temp_csv = "/tmp/temp_run.csv"
-
-    for algo_nombre, script_py in algoritmos:
-        print(f"\n==================== EVALUANDO: {algo_nombre} ====================")
-
-        for inst in INSTANCIAS:
-            print(f"\n--- Instancia: {inst['nombre']} ({inst['archivo']}) ---")
+    for algoritmo, usar_bl in ALGORITMOS:
+        print(f"\n==================== {algoritmo} ====================")
+        for tamano, archivo in INSTANCIAS:
+            matriz, num_maq, num_job, cota_superior, _ = leer_instancia_taillard(archivo)
+            print(f"\n--- {tamano} ({archivo}) | UB conocido: {cota_superior} ---")
 
             for semilla in SEMILLAS:
                 contador += 1
-                if os.path.exists(temp_csv):
-                    os.remove(temp_csv)
+                random.seed(semilla)
 
-                print(f"[{contador:02d}/{total_pruebas}] {algo_nombre} | Semilla {semilla:2d} ...", end=" ", flush=True)
+                inicio = time.perf_counter()
+                mejor_sol, makespan, traza = ejecutar_evolutivo(
+                    TAM_POBLA, PROB_CRUCE, PROB_MUTA, ITERACIONES, matriz,
+                    num_maq, num_job, usar_bl=usar_bl, mostrar_progreso=False)
+                tiempo = time.perf_counter() - inicio
 
-                cmd = [
-                    PYTHON_EXEC,
-                    script_py,
-                    str(semilla),
-                    inst["archivo"],
-                    str(TAM_POBLA),
-                    str(PROB_CRUCE),
-                    str(PROB_MUTA),
-                    str(ITERACIONES),
-                    temp_csv
-                ]
+                rpd = (makespan - cota_superior) / cota_superior * 100
+                filas_resultado.append([
+                    algoritmo, tamano, archivo, semilla, TAM_POBLA, PROB_CRUCE,
+                    PROB_MUTA, ITERACIONES, makespan, cota_superior, f"{rpd:.2f}",
+                    f"{tiempo:.4f}", traza[-1][0],
+                    "-".join(str(trabajo) for trabajo in mejor_sol),
+                ])
+                filas_traza.extend(
+                    [algoritmo, tamano, semilla, generacion, mk] for generacion, mk in traza)
 
-                t0 = time.time()
-                res = subprocess.run(cmd, capture_output=True, text=True)
-                t1 = time.time()
+                print(f"[{contador:02d}/{total}] semilla {semilla:2d} -> Makespan {makespan} "
+                      f"(RPD {rpd:5.2f}%) | hallado en gen {traza[-1][0]:3d} | {tiempo:6.2f}s")
 
-                if res.returncode == 0 and os.path.exists(temp_csv):
-                    # Leer el resultado individual registrado
-                    with open(temp_csv, mode="r", encoding="utf-8") as f_temp:
-                        reader = list(csv.reader(f_temp, delimiter=";"))
-                        if len(reader) >= 2:
-                            fila = reader[1]
-                            # Estructura del script:
-                            # AG:      [Instancia, Semilla, Pob, Pc, Pm, Iter, Mk, UB, RPD, Tiempo, Seq]
-                            # Memetico:[Algo, Instancia, Semilla, Pob, Pc, Pm, Iter, Mk, UB, RPD, Tiempo, Seq]
-                            if algo_nombre == "Memetico":
-                                mk, ub, rpd, seg, seq = fila[7], fila[8], fila[9], fila[10], fila[11]
-                            else:
-                                mk, ub, rpd, seg, seq = fila[6], fila[7], fila[8], fila[9], fila[10]
+    with open(ARCHIVO_RESULTADOS, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, delimiter=";")
+        writer.writerow([
+            "Algoritmo", "Tamano_Problema", "Instancia", "Semilla", "Poblacion",
+            "Prob_Cruce", "Prob_Mutacion", "Iteraciones", "Makespan", "Upper_Bound",
+            "RPD_%", "Tiempo_Seg", "Generacion_Hallazgo", "Mejor_Secuencia",
+        ])
+        writer.writerows(filas_resultado)
 
-                            # Escribir en el CSV maestro consolidado
-                            with open(ARCHIVO_SALIDA, mode="a", newline="", encoding="utf-8") as f_master:
-                                writer_m = csv.writer(f_master, delimiter=";")
-                                writer_m.writerow([
-                                    algo_nombre, inst["nombre"], inst["archivo"], semilla,
-                                    TAM_POBLA, PROB_CRUCE, PROB_MUTA, ITERACIONES,
-                                    mk, ub, rpd, seg, seq
-                                ])
+    with open(ARCHIVO_TRAZA, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f, delimiter=";")
+        writer.writerow(["Algoritmo", "Tamano_Problema", "Semilla", "Generacion", "Makespan"])
+        writer.writerows(filas_traza)
 
-                            print(f"✓ Makespan: {mk} (RPD: {rpd}%) | {float(seg):.2f}s")
-                        else:
-                            print(f"✗ Salida inesperada en CSV")
-                else:
-                    print(f"✗ Falló la ejecución")
-                    print(res.stderr)
-
-    t_global_total = time.time() - t_global_inicio
-    print("\n" + "=" * 80)
-    print(" EXPERIMENTACIÓN FINALIZADA CON ÉXITO")
-    print(f" Tiempo total de experimentación: {t_global_total:.2f} segundos")
-    print(f" Matriz completa guardada en:     {ARCHIVO_SALIDA}")
-    print("=" * 80)
+    print("\n" + "=" * 78)
+    print(" EXPERIMENTACIÓN FINALIZADA")
+    print(f" Tiempo total:  {time.perf_counter() - inicio_global:.2f} segundos")
+    print(f" Resultados en: {ARCHIVO_RESULTADOS}")
+    print(f" Trazas en:     {ARCHIVO_TRAZA}")
+    print("=" * 78)
 
 
 if __name__ == "__main__":

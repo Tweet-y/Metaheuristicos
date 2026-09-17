@@ -1,57 +1,59 @@
 #!/usr/bin/env python3
-"""
-Script para procesar el CSV de resultados y generar la tabla resumen
-formateada para el artículo científico IEEE y Markdown.
+"""Tabla resumen a partir del CSV de la batería experimental.
+
+Uso: python procesar_resultados.py
 """
 
 import csv
-from collections import defaultdict
 import statistics
+from collections import defaultdict
 
 ARCHIVO_CSV = "results/comparativa_ag_vs_memetico.csv"
 
+TAMANOS = ["Pequeña (20x5)", "Mediana (50x10)", "Grande (100x10)"]
+ALGORITMOS = ["AG", "Memetico"]
+
+
 def analizar():
     try:
-        with open(ARCHIVO_CSV, mode="r", encoding="utf-8") as f:
-            reader = csv.DictReader(f, delimiter=";")
-            datos = list(reader)
+        with open(ARCHIVO_CSV, encoding="utf-8") as f:
+            datos = list(csv.DictReader(f, delimiter=";"))
     except FileNotFoundError:
-        print(f"No se encontró el archivo: {ARCHIVO_CSV}. Ejecuta primero ejecutar_comparativa.py")
+        print(f"No se encontró {ARCHIVO_CSV}. Ejecuta primero: python ejecutar_comparativa.py")
         return
 
-    # Estructura: {(Instancia, Algoritmo): list of dicts}
     grupos = defaultdict(list)
     for fila in datos:
-        clave = (fila["Tamano_Problema"], fila["Algoritmo"])
-        grupos[clave].append(fila)
+        grupos[(fila["Tamano_Problema"], fila["Algoritmo"])].append(fila)
 
-    print("\n" + "=" * 85)
-    print(" TABLA RESUMEN PARA EL INFORME IEEE (MEDIA Y MEJOR VALOR)")
-    print("=" * 85)
-    print(f"{'Instancia':<18} | {'Algoritmo':<10} | {'UB':<6} | {'Mejor Mk':<8} | {'RPD Min %':<10} | {'RPD Prom %':<10} | {'Tiempo (s)':<10}")
-    print("-" * 85)
+    ancho = 100
+    print("\n" + "=" * ancho)
+    print(" TABLA RESUMEN: ALGORITMO GENÉTICO vs ALGORITMO MEMÉTICO")
+    print(f" RPD(%) = (Makespan - UB) / UB * 100, sobre {len(grupos[(TAMANOS[0], ALGORITMOS[0])])} "
+          f"semillas por combinación")
+    print("=" * ancho)
+    print(f"{'Instancia':<17} | {'Algoritmo':<9} | {'UB':>5} | {'Mejor':>5} | {'RPD min':>8} | "
+          f"{'RPD prom':>17} | {'Gen. hallazgo':>13} | {'Tiempo':>8}")
+    print("-" * ancho)
 
-    instancias = ["Pequeña (20x5)", "Mediana (50x10)", "Grande (100x10)"]
-    algoritmos = ["AG_Puro", "Memetico"]
-
-    for inst in instancias:
-        for algo in algoritmos:
-            corridas = grupos.get((inst, algo), [])
+    for tamano in TAMANOS:
+        for algoritmo in ALGORITMOS:
+            corridas = grupos.get((tamano, algoritmo), [])
             if not corridas:
                 continue
 
-            ub = corridas[0]["Upper_Bound"]
+            cota = corridas[0]["Upper_Bound"]
             makespans = [int(c["Makespan"]) for c in corridas]
-            rpds = [float(c["RPD_%"].replace(",", ".")) for c in corridas]
-            tiempos = [float(c["Tiempo_Seg"].replace(",", ".")) for c in corridas]
+            rpds = [float(c["RPD_%"]) for c in corridas]
+            tiempos = [float(c["Tiempo_Seg"]) for c in corridas]
+            hallazgos = [int(c["Generacion_Hallazgo"]) for c in corridas]
 
-            mejor_mk = min(makespans)
-            rpd_min = min(rpds)
-            rpd_prom = statistics.mean(rpds)
-            tiempo_prom = statistics.mean(tiempos)
+            desviacion = statistics.stdev(rpds) if len(rpds) > 1 else 0.0
+            print(f"{tamano:<17} | {algoritmo:<9} | {cota:>5} | {min(makespans):>5} | "
+                  f"{min(rpds):>7.2f}% | {statistics.mean(rpds):>9.2f}% ± {desviacion:<5.2f} | "
+                  f"{statistics.mean(hallazgos):>13.1f} | {statistics.mean(tiempos):>7.2f}s")
+        print("-" * ancho)
 
-            print(f"{inst:<18} | {algo:<10} | {ub:<6} | {mejor_mk:<8} | {rpd_min:<10.2f} | {rpd_prom:<10.2f} | {tiempo_prom:<10.2f}")
-        print("-" * 85)
 
 if __name__ == "__main__":
     analizar()
