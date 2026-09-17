@@ -83,12 +83,12 @@ def ejecutar():
                 cmd = [
                     PYTHON_EXEC,
                     script_py,
+                    str(semilla),
                     inst["archivo"],
                     str(TAM_POBLA),
                     str(PROB_CRUCE),
                     str(PROB_MUTA),
                     str(ITERACIONES),
-                    str(semilla),
                     temp_csv
                 ]
 

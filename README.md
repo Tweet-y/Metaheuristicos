@@ -158,8 +158,66 @@ El trabajo debe ser 100% original (no copiado de internet ni de un compañero) �
 * Taillard, E. (1993). *Benchmarks for basic scheduling problems*. European Journal of Operational Research.
 * Reeves, C. R. (1995). *A genetic algorithm for flowshop sequencing*. Computers & Operations Research.
 
-## Ejecución
+## Guía de Ejecución
+
+### 1. Requisitos e Instalación
+
+Recomendado Python 3.10+. Para configurar el entorno:
 
 ```bash
-python algoritmoGenetico.py data/ins_20_10_01.txt 300 0.8 0.3 5000 1 r_ins_20_10_01.csv 
+python3 -m venv .venv
+source .venv/bin/activate    # En Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 2. Estructura del Proyecto
+
+* `data/`: Instancias de prueba de Taillard (e.g. `ins_20_5_00.txt`, `ins_50_10_00.txt`, `ins_100_10_00.txt`).
+* `results/`: Archivos `.csv` con métricas de evaluación generados por las corridas.
+* `algoritmoGenetico.py`: Implementación del Algoritmo Genético para PFSP.
+* `algoritmoMemetico.py`: Implementación del Algoritmo Memético (AG + Búsqueda Local por Inserción).
+* `ejecutar_comparativa.py`: Batería de pruebas comparativa entre AG y Memético sobre distintas escalas.
+* `procesar_resultados.py`: Generador de tabla resumen con RPD y tiempos para el informe.
+
+### 3. Ejecución: Algoritmo Genético
+
+Formato de comando:
+```bash
+python algoritmoGenetico.py <semilla> <archivo_instancia> <tam_poblacion> <prob_cruza> <prob_mutacion> <iteraciones> [salida.csv]
+```
+
+Donde:
+* `semilla`: entero (e.g. `1`).
+* `archivo_instancia`: ruta del archivo de datos (e.g. `data/ins_20_5_00.txt`).
+* `tam_poblacion`: entero positivo (e.g. `60`).
+* `prob_cruza`: decimal con punto entre 0.0 y 1.0 (e.g. `0.85`).
+* `prob_mutacion`: decimal con punto entre 0.0 y 1.0 (e.g. `0.20`).
+* `iteraciones`: entero positivo (e.g. `300`).
+* `salida.csv`: *(opcional)* ruta de archivo para guardar resultados.
+
+Ejemplo:
+```bash
+python algoritmoGenetico.py 1 data/ins_20_5_00.txt 60 0.85 0.20 300 results/resultado_ag.csv
+```
+
+### 4. Ejecución: Algoritmo Memético
+
+Formato de comando:
+```bash
+python algoritmoMemetico.py <semilla> <archivo_instancia> <tam_poblacion> <prob_cruza> <prob_mutacion> <iteraciones> [frecuencia_bl] [salida.csv]
+```
+
+Donde `frecuencia_bl` es opcional (default: `1`, aplica búsqueda local cada generación al élite).
+
+Ejemplo:
+```bash
+python algoritmoMemetico.py 1 data/ins_20_5_00.txt 60 0.85 0.20 300 1 results/resultado_memetico.csv
+```
+
+### 5. Reproducción de Experimentos
+
+Para correr todas las combinaciones y visualizar el resumen:
+```bash
+python ejecutar_comparativa.py
+python procesar_resultados.py
 ```

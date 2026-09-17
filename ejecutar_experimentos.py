@@ -59,12 +59,12 @@ def main():
             cmd = [
                 PYTHON_EXEC,
                 SCRIPT_AG,
+                str(semilla),
                 INSTANCIA,
                 str(TAM_POBLA),
                 str(PROB_CRUCE),
                 str(PROB_MUTA),
                 str(iteracion),
-                str(semilla),
                 ARCHIVO_SALIDA
             ]
 
