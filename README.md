@@ -1,223 +1,151 @@
-# Metaheuristicos
+# Proyecto 1: Permutation Flow Shop Scheduling Problem (PFSP)
+## Algoritmos Metaheurísticos — Algoritmo Genético y Algoritmo Memético
 
-# Proyecto: Permutation Flow Shop Scheduling Problem (PFSP)
+Repositorio para la implementación y evaluación experimental de metaheurísticas poblacionales aplicadas al problema de secuenciamiento en taller de flujo (*Permutation Flow Shop Scheduling Problem*, PFSP) con datos de referencia de Taillard.
 
-## Resolución mediante Algoritmos Evolutivos
+---
 
+## 1. Instalación y Requisitos
 
-### 1. Introducción y motivación
+Requisito recomendado: **Python 3.10+**.
 
-Imagina una fábrica textil donde cada pedido (trabajo) debe pasar, en el mismo orden, por una serie de estaciones: corte $\rightarrow$ costura $\rightarrow$ planchado $\rightarrow$ empaquetado. Cada estación es una máquina, y cada trabajo tarda un tiempo distinto en cada una de ellas.
-
-La pregunta que resuelve el Permutation Flow Shop Scheduling Problem (PFSP) es:
-
-> **¿En qué orden debemos secuenciar los trabajos para que la fábrica termine todos lo antes posible?**
-
-Este tipo de problema aparece en manufactura, líneas de ensamblaje, procesamiento de datos por lotes (pipelines), impresión, e incluso en programación de tareas en sistemas computacionales. Es uno de los problemas de scheduling más estudiados en optimización combinatoria, y su espacio de búsqueda crece como $n!$, lo que lo hace intratable por fuerza bruta para instancias medianas o grandes, y por eso es un candidato ideal para metaheurísticas.
-
-### 2. Definición formal del problema
-
-* Hay $n$ trabajos (jobs): $J_{1}, J_{2}, \dots, J_{n}$
-* Hay $m$ máquinas: $M_{1}, M_{2}, \dots, M_{m}$
-* Todos los trabajos pasan por todas las máquinas en el mismo orden: primero $M_{1}$, luego $M_{2}, \dots,$ hasta $M_{m}$. Esto es lo que distingue al *flow shop* de otros problemas de scheduling (como el *job shop*, donde cada trabajo puede tener su propio orden de máquinas; eso NO es lo que resolveremos aquí).
-* Se conoce de antemano el tiempo de procesamiento $p_{i,j} =$ tiempo que tarda el trabajo $i$ en la máquina $j$.
-
-**Restricción clave (lo que hace "Permutation" al problema):** el orden en que los trabajos entran a la máquina 1 debe ser el mismo orden en que entran a todas las demás máquinas. Es decir, no se pueden "adelantar" ni "atrasar" trabajos entre estaciones; todos siguen la misma fila.
-
-**Objetivo:** Encontrar la permutación de los $n$ trabajos $\pi = (\pi_{1}, \pi_{2}, \dots, \pi_{n})$ que minimiza el makespan ($C_{\max}$), el tiempo en que termina el último trabajo en la última máquina.
-
-> **Nota de notación (para no confundir $J$ con $\pi$):** $J_{i}$ es el trabajo número $i$ como entidad fija; trae consigo sus propios tiempos de procesamiento $p_{i,j}$ que nunca cambian. $\pi$, en cambio, es el orden que estamos buscando: $\pi_{k}$ significa "el trabajo que ocupa la posición $k$ en la secuencia". Por ejemplo, si $\pi = (J_{3}, J_{1}, J_{2})$, entonces $\pi_{1} = J_{3}$ (en la posición 1 va el trabajo 3), $\pi_{2} = J_{1}$, y $\pi_{3} = J_{2}$. El cromosoma del AG (sección 4) es exactamente $\pi$ escrito como un arreglo de índices de trabajos.
-
-### 3. Ejemplo numérico paso a paso (para que quede 100% claro)
-
-Supongamos una instancia pequeña con 3 trabajos y 2 máquinas, con los siguientes tiempos de procesamiento:
-
-| Trabajo | Máquina 1 ($M_1$) | Máquina 2 ($M_2$) |
-| :---- | :---- | :---- |
-| **J1** | 5 | 3 |
-| **J2** | 2 | 6 |
-| **J3** | 4 | 4 |
-
-Probemos la secuencia $\pi = (J1, J2, J3)$.
-
-**Regla de cálculo:** cada trabajo puede empezar en una máquina recién cuando (a) esa máquina quedó libre del trabajo anterior, Y (b) el propio trabajo ya terminó en la máquina previa.
-
-$$C(i,j) = \max(C(i-1,j), C(i,j-1)) + p_{i,j}$$
-
-Construimos la tabla de tiempos de finalización $C(i,j)$:
-
-* **Máquina 1 ($M_1$ ó $j=1$):** cada trabajo solo espera a que $M_1$ quede libre del anterior.
-  * $C(J1, M1) = C(1,1) = \max(C(0,1), C(1,0)) + p_{1,1} = \max(0,0) + 5 = 5$
-  * $C(J2, M1) = C(2,1) = \max(C(1,1), C(2,0)) + p_{2,1} = \max(5,0) + 2 = 7$
-  * $C(J3, M1) = C(3,1) = \max(C(2,1), C(3,0)) + p_{3,1} = \max(7,0) + 4 = 11$
-
-* **Máquina 2 ($j=2$):** cada trabajo espera lo que sea mayor entre ($M_2$ libre) y (el trabajo ya salió de $M_1$).
-  * $C(J1, M2) = C(1,2) = \max(C(0,2), C(1,1)) + p_{1,2} = \max(0,5) + 3 = 8$
-  * $C(J2, M2) = C(2,2) = \max(C(1,2), C(2,1)) + p_{2,2} = \max(8,7) + 6 = 14$
-  * $C(J3, M2) = C(3,2) = \max(C(2,2), C(3,1)) + p_{3,2} = \max(14,11) + 4 = 18$
-
-**Makespan de esta secuencia:** $C_{\max} = 18$ (el último valor calculado, en la última máquina).
-
-> **Noten el patrón:** para calcular $C(i,j)$ siempre necesitan el valor de la celda de arriba ($C(i-1,j)$) y el de la celda de la izquierda ($C(i,j-1)$) — por eso en código conviene llenar esta tabla como una matriz, recorriendo primero los trabajos de la secuencia y, para cada uno, las máquinas en orden.
->
-> Este es exactamente el **fitness** que va a evaluar tu Algoritmo Genético: dado un cromosoma (una permutación), se recorre esta tabla y el makespan resultante es el valor que hay que minimizar. Al probar con otra secuencia, por ejemplo $\pi = (J2, J1, J3)$, se va a obtener un makespan distinto; ese es justamente el espacio de búsqueda que explora el AG.
-
-### 4. Segundo método a implementar (comparación)
-
-Además del AG, deben implementar un **Algoritmo Memético**: el mismo AG descrito arriba, pero agregando una etapa de búsqueda local después del cruce/mutación (o cada cierto número de generaciones) aplicada al mejor individuo o a toda la población. Una opción simple y efectiva para permutaciones es el operador *insertion local search* o *2-opt* adaptado a permutaciones: probar mover cada trabajo a otras posiciones cercanas y quedarse con la mejora si la hay.
-
-Esto les permitirá comparar **AG puro (exploración)** vs **AG + búsqueda local (exploración + explotación)**.
-
-### 5. Dataset: Instancias de Taillard
-
-Usen las instancias estándar de la literatura, con óptimos/mejores valores conocidos publicados, disponibles en:
-
-* [Repositorio 1](https://figshare.com/articles/dataset/Flowshop_instances/26485930?file=48152884)
-* [Repositorio 2](https://github.com/arnaud-m/pisco/tree/master/pisco-shop/src/main/benchmarks/instances/flow-shop/taillard)
-* [Mejores Resultados](https://zenodo.org/records/17028980)
-* [Artículo Estado del Arte](https://hal.science/hal-03689608v1/document)
-
-**Formato de los archivos:** Cada archivo contiene varias instancias. Para cada una encontrarán:
-
-* Una línea con number of jobs, number of machines.
-* Una matriz de tiempos de procesamiento: **filas = máquinas, columnas = trabajos** (*¡atención al orden, es fácil confundirlo al leer el archivo!*).
-
-**Tamaños recomendados para el proyecto:**
-
-* Empiecen probando con instancias pequeñas ($20$ trabajos $\times$ $5$ máquinas) para validar que su código funciona y que el makespan calculado tiene sentido.
-* Luego trabajen con al menos 2-3 tamaños distintos (por ejemplo $20\times5$, $50\times10$, $100\times10$) para poder analizar cómo escala cada método.
-
-Cada instancia de Taillard tiene su mejor valor conocido (*Upper Bound*) publicado, lo que les permite calcular el gap porcentual de sus soluciones — la métrica de comparación más usada en la literatura:
-
-$$
-\mathrm{RPD}(\%) = \frac{C_{\max}^{\text{obtenido}} - C_{\max}^{\text{óptimo / mejor conocido}}}{C_{\max}^{\text{óptimo / mejor conocido}}} \times 100
-$$
-
-*(RPD = Relative Percentage Deviation)*
-
-### 6. Trabajo de Investigación (Informe Escrito)
-
-**Objetivo:** elaborar un artículo científico, siguiendo la plantilla IEEE Transactions, que documente todo el desarrollo del proyecto: marco teórico, diseño experimental, resultados y conclusiones de la comparación AG vs Algoritmo Memético aplicados al PFSP. Se busca ejercitar la redacción científica y la capacidad de relacionar teoría, implementación y análisis crítico.
-
-**Estructura mínima del artículo:**
-
-* Título, autor(es) y afiliación institucional.
-* **Resumen:** problema, enfoque metodológico, resultados principales y relevancia del estudio.
-* **Introducción:** contexto del scheduling industrial, definición del PFSP, breve estado del arte, objetivos específicos.
-* **Métodos:**
-  * *Marco teórico:* el problema PFSP y las dos metaheurísticas usadas (AG y Memético).
-  * *Modelamiento y diseño:* representación, función de fitness, operadores genéticos elegidos y justificación, operador de búsqueda local del Memético, mecanismo de reemplazo/elitismo y criterio de término.
-* **Resultados:** diseño experimental, ajuste y justificación de parámetros, tablas/gráficas comparando AG vs Memético, test estadístico.
-* **Conclusiones:** principales aportes, ventajas y limitaciones de cada método, posibles líneas de trabajo futuro.
-* **Referencias en formato IEEE** (incluir fuentes relevantes y actuales).
-* **Extensión:** 2000-3000 palabras. El trabajo debe ser 100% original (no copiado de internet ni de otra fuente), de lo contrario se evalúa con nota NCR.
-* **Evaluación:** Informe final (rúbrica del trabajo escrito) 70% — Avance semanal en Overleaf o equivalente 30%.
-* **Entrega:** redactar en Overleaf o equivalente y subir el documento final en EVA. Fecha según Syllabus o acuerdo en clases.
-
-### 7. Trabajo de Programación (Implementación)
-
-**Enunciado:** desarrollar en **Python 3** un programa que resuelva el PFSP implementando (a) Algoritmo Genético y (b) Algoritmo Memético. La solución se modela como un cromosoma tipo permutación: un vector de $n$ enteros.
-
-**Funciones mínimas que debe tener el código:**
-
-* Generar un número real aleatorio en $[0, 1]$.
-* Generar un número entero aleatorio en un rango dado.
-* Leer y parsear una instancia de Taillard (matriz de tiempos $p_{i,j}$).
-* Inicializar la población.
-* Calcular el fitness de un individuo.
-* Seleccionar un individuo.
-* Cruzar dos individuos con un operador válido.
-* Mutar un individuo.
-* Aplicar búsqueda local sobre un individuo (variante Memética).
-* Reemplazar/reducir la población, aplicando elitismo (opcional).
-
-**Parámetros que debe recibir el programa:**
-
-* Semilla aleatoria.
-* Instancia a resolver.
-* Tamaño de la población.
-* Probabilidad de cruce.
-* Probabilidad de mutación.
-* Número de generaciones/iteraciones.
-* *(Memético)* frecuencia o intensidad de la búsqueda local.
-
-**Metodología de desarrollo:** programación modular — los operadores genéticos deben implementarse como funciones/métodos genéricos y reutilizables, formando una pequeña "biblioteca" aplicable a futuros proyectos. Se recomienda usar control de versiones (GitHub).
-
-**Evaluación:**
-
-* **Interfaz** (presentación por pantalla, manejo de errores, orden): 20%
-* **Código** (originalidad, uso de funciones y estructuras de datos): 30%
-* **Funcionalidad** (nivel de cumplimiento de los requerimientos): 50%
-
-El trabajo debe ser 100% original (no copiado de internet ni de un compañero) — de lo contrario, nota NCR. El programa será testeado en vivo con el profesor para verificar su correcta codificación y ejecución.
-
-**Entrega:** comprimir la carpeta del proyecto y subirla a EVA. Fecha según Syllabus o acuerdo en clases.
-
-### 8. Referencias base para investigar el problema
-
-* Taillard, E. (1993). *Benchmarks for basic scheduling problems*. European Journal of Operational Research.
-* Reeves, C. R. (1995). *A genetic algorithm for flowshop sequencing*. Computers & Operations Research.
-
-## Guía de Ejecución
-
-### 1. Requisitos e Instalación
-
-Recomendado Python 3.10+. Para configurar el entorno:
+Para configurar el entorno virtual e instalar las dependencias necesarias:
 
 ```bash
+# Crear entorno virtual
 python3 -m venv .venv
-source .venv/bin/activate    # En Windows: .venv\Scripts\activate
+
+# Activar entorno virtual
+source .venv/bin/activate          # En Windows: .venv\Scripts\activate
+
+# Instalar dependencias
 pip install -r requirements.txt
 ```
 
-### 2. Estructura del Proyecto
+---
 
-* `data/`: Instancias de prueba de Taillard (e.g. `ins_20_5_00.txt`, `ins_50_10_00.txt`, `ins_100_10_00.txt`).
-* `results/`: Archivos `.csv` con métricas de evaluación generados por las corridas.
-* `algoritmoGenetico.py`: Implementación del Algoritmo Genético para PFSP.
-* `algoritmoMemetico.py`: Implementación del Algoritmo Memético (AG + Búsqueda Local por Inserción).
-* `ejecutar_comparativa.py`: Batería de pruebas comparativa entre AG y Memético sobre distintas escalas.
-* `procesar_resultados.py`: Generador de tabla resumen con RPD y tiempos para el informe.
+## 2. Estructura de Carpetas del Proyecto
 
-### 3. Ejecución: Algoritmo Genético
-
-Formato de comando:
-```bash
-python algoritmoGenetico.py <semilla> <archivo_instancia> <tam_poblacion> <prob_cruza> <prob_mutacion> <iteraciones> [salida.csv]
+```text
+Metaheuristicos/
+├── data/                                # Instancias del problema de Taillard (.txt)
+│   ├── ins_20_5_00.txt                  # Instancia pequeña (20 trabajos, 5 máquinas)
+│   ├── ins_50_10_00.txt                 # Instancia mediana (50 trabajos, 10 máquinas)
+│   ├── ins_100_10_00.txt                # Instancia grande (100 trabajos, 10 máquinas)
+│   └── ...
+├── results/                             # Salidas de ejecuciones y comparativas (.csv)
+│   └── comparativa_ag_vs_memetico.csv   # Resultados experimentales consolidados
+├── algoritmoGenetico.py                 # Código fuente del Algoritmo Genético
+├── algoritmoMemetico.py                 # Código fuente del Algoritmo Memético (+ Búsqueda Local)
+├── ejecutar_comparativa.py              # Script para ejecutar batería completa de pruebas
+├── ejecutar_experimentos.py             # Script para corridas múltiples con semillas
+├── procesar_resultados.py              # Procesador de resultados y generador de tablas
+├── requirements.txt                     # Dependencias (numpy, pandas, etc.)
+└── README.md                            # Documentación del proyecto
 ```
 
-Donde:
-* `semilla`: entero (e.g. `1`).
-* `archivo_instancia`: ruta del archivo de datos (e.g. `data/ins_20_5_00.txt`).
-* `tam_poblacion`: entero positivo (e.g. `60`).
-* `prob_cruza`: decimal con punto entre 0.0 y 1.0 (e.g. `0.85`).
-* `prob_mutacion`: decimal con punto entre 0.0 y 1.0 (e.g. `0.20`).
-* `iteraciones`: entero positivo (e.g. `300`).
-* `salida.csv`: *(opcional)* ruta de archivo para guardar resultados.
+---
 
-Ejemplo:
+## 3. Instrucciones de Ejecución (CLI)
+
+### A. Algoritmo Genético
+
+El programa recibe los parámetros por línea de comandos en el siguiente orden:
+
+```bash
+python algoritmoGenetico.py <semilla> <archivo_instancia> <tam_poblacion> <prob_cruza> <prob_mutacion> <iteraciones> [salida_csv]
+```
+
+**Parámetros:**
+* `semilla`: número entero para la reproducibilidad (ej: `1`).
+* `archivo_instancia`: ruta al archivo de la instancia de Taillard (ej: `data/ins_20_5_00.txt`).
+* `tam_poblacion`: entero positivo, tamaño de la población (ej: `60`).
+* `prob_cruza`: número real entre 0.0 y 1.0 con punto decimal (ej: `0.85`).
+* `prob_mutacion`: número real entre 0.0 y 1.0 con punto decimal (ej: `0.20`).
+* `iteraciones`: número entero positivo de generaciones (ej: `300`).
+* `salida_csv`: *(opcional)* ruta a archivo CSV donde registrar el resultado.
+
+**Ejemplo de ejecución:**
+```bash
+python algoritmoGenetico.py 1 data/ins_20_5_00.txt 60 0.85 0.20 300
+```
+
+Con guardado a CSV:
 ```bash
 python algoritmoGenetico.py 1 data/ins_20_5_00.txt 60 0.85 0.20 300 results/resultado_ag.csv
 ```
 
-### 4. Ejecución: Algoritmo Memético
+---
 
-Formato de comando:
+### B. Algoritmo Memético
+
+Incorpora una etapa de explotación mediante búsqueda local por inserción (*Insertion Local Search*) sobre el individuo élite:
+
 ```bash
-python algoritmoMemetico.py <semilla> <archivo_instancia> <tam_poblacion> <prob_cruza> <prob_mutacion> <iteraciones> [frecuencia_bl] [salida.csv]
+python algoritmoMemetico.py <semilla> <archivo_instancia> <tam_poblacion> <prob_cruza> <prob_mutacion> <iteraciones> [frecuencia_bl] [salida_csv]
 ```
 
-Donde `frecuencia_bl` es opcional (default: `1`, aplica búsqueda local cada generación al élite).
+**Parámetros adicionales:**
+* `frecuencia_bl`: *(opcional, default: 1)* frecuencia en generaciones para aplicar la búsqueda local al individuo élite.
+* `salida_csv`: *(opcional)* ruta al archivo CSV de resultados.
 
-Ejemplo:
+**Ejemplo de ejecución:**
 ```bash
 python algoritmoMemetico.py 1 data/ins_20_5_00.txt 60 0.85 0.20 300 1 results/resultado_memetico.csv
 ```
 
-### 5. Reproducción de Experimentos
+---
 
-Para correr todas las combinaciones y visualizar el resumen:
+### C. Batería Experimental y Tabla Resumen
+
+Para replicar las pruebas experimentales sobre instancias pequeñas, medianas y grandes, y generar la tabla resumen con métricas (Makespan, Upper Bound, RPD % y Tiempo):
+
 ```bash
+# 1. Ejecutar corridas comparativas (genera results/comparativa_ag_vs_memetico.csv)
 python ejecutar_comparativa.py
+
+# 2. Procesar y visualizar tabla consolidada en consola
 python procesar_resultados.py
 ```
+
+---
+
+## 4. Fundamentos Teóricos del Problema (PFSP)
+
+### 4.1. Definición Formal
+* Se tienen $n$ trabajos ($J_1, J_2, \dots, J_n$) y $m$ máquinas ($M_1, M_2, \dots, M_m$).
+* Cada trabajo debe pasar por todas las máquinas exactamente en el mismo orden: $M_1 \rightarrow M_2 \rightarrow \dots \rightarrow M_m$.
+* Cada trabajo $i$ requiere un tiempo de procesamiento conocido $p_{i,j}$ en la máquina $j$.
+* **Restricción de permutación:** el orden en que los trabajos ingresan a la primera máquina se mantiene idéntico en todas las máquinas subsiguientes.
+* **Objetivo:** encontrar la permutación $\pi = (\pi_1, \pi_2, \dots, \pi_n)$ que minimice el *makespan* ($C_{\max}$), es decir, el instante de finalización del último trabajo en la última máquina.
+
+### 4.2. Cálculo de Makespan (Función de Fitness)
+Para una secuencia $\pi$, el tiempo de finalización $C(i, j)$ del trabajo en la posición $i$ en la máquina $j$ se calcula mediante:
+
+$$C(i, j) = \max(C(i-1, j), C(i, j-1)) + p_{\pi_i, j}$$
+
+con condiciones de borde $C(0, j) = 0$ y $C(i, 0) = 0$. El valor a minimizar es $C_{\max} = C(n, m)$.
+
+### 4.3. Métrica de Desempeño: RPD (%)
+Para evaluar la calidad de las soluciones respecto al mejor valor conocido (*Upper Bound*, $UB$) de Taillard:
+
+$$\text{RPD}(\%) = \frac{C_{\max}^{\text{obtenido}} - UB}{UB} \times 100$$
+
+---
+
+## 5. Operadores Implementados
+
+* **Representación:** Cromosoma tipo permutación de $n$ enteros (índices de trabajos sin repetición).
+* **Población Inicial:** Generación de permutaciones aleatorias uniformes (`inicializar_poblacion`).
+* **Selección:** Torneo binario determinista ($k=2$) para favorecer individuos con menor makespan (`seleccion_torneo`).
+* **Cruce:** Cruce por Orden (*Order Crossover*, OX) respetando el orden relativo y evitando duplicados (`cruce_ox`).
+* **Mutación:** Combinación probabilística de *Swap* (intercambio de dos posiciones) e *Insertion* (extracción e inserción) (`mutacion_swap`, `mutacion_insercion`).
+* **Reemplazo:** Reemplazo generacional con elitismo estricto (preserva la mejor solución histórica sin reevaluar).
+* **Búsqueda Local (Memético):** Búsqueda local por inserción sobre el individuo élite probando todas las posiciones posibles para cada trabajo hasta convergencia o límite de iteraciones (`busqueda_local_insercion`).
+
+---
+
+## 6. Referencias
+
+* Taillard, E. (1993). *Benchmarks for basic scheduling problems*. European Journal of Operational Research, 64(2), 278-285.
+* Reeves, C. R. (1995). *A genetic algorithm for flowshop sequencing*. Computers & Operations Research, 22(1), 5-13.
