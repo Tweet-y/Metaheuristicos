@@ -1,151 +1,209 @@
 # Proyecto 1: Permutation Flow Shop Scheduling Problem (PFSP)
 ## Algoritmos Metaheurísticos — Algoritmo Genético y Algoritmo Memético
 
-Repositorio para la implementación y evaluación experimental de metaheurísticas poblacionales aplicadas al problema de secuenciamiento en taller de flujo (*Permutation Flow Shop Scheduling Problem*, PFSP) con datos de referencia de Taillard.
+Implementación y evaluación experimental de metaheurísticas poblacionales sobre el problema de secuenciamiento en taller de flujo (*Permutation Flow Shop Scheduling Problem*, PFSP), con instancias de referencia de Taillard.
 
 ---
 
-## 1. Instalación y Requisitos
+## 1. Instalación
 
-Requisito recomendado: **Python 3.10+**.
+Requisito: **Python 3.9 o superior** (probado en 3.9 y 3.13).
 
-Para configurar el entorno virtual e instalar las dependencias necesarias:
+Los algoritmos no usan ninguna dependencia externa: corren con Python a secas.
 
 ```bash
-# Crear entorno virtual
+python3 algoritmoGenetico.py 1 data/ins_20_5_00.txt 60 0.85 0.20 300
+```
+
+Solo `generar_graficos.py` necesita matplotlib:
+
+```bash
 python3 -m venv .venv
-
-# Activar entorno virtual
 source .venv/bin/activate          # En Windows: .venv\Scripts\activate
-
-# Instalar dependencias
 pip install -r requirements.txt
 ```
 
 ---
 
-## 2. Estructura de Carpetas del Proyecto
+## 2. Estructura del proyecto
 
 ```text
 Metaheuristicos/
-├── data/                                # Instancias del problema de Taillard (.txt)
-│   ├── ins_20_5_00.txt                  # Instancia pequeña (20 trabajos, 5 máquinas)
-│   ├── ins_50_10_00.txt                 # Instancia mediana (50 trabajos, 10 máquinas)
-│   ├── ins_100_10_00.txt                # Instancia grande (100 trabajos, 10 máquinas)
-│   └── ...
-├── results/                             # Salidas de ejecuciones y comparativas (.csv)
-│   └── comparativa_ag_vs_memetico.csv   # Resultados experimentales consolidados
-├── algoritmoGenetico.py                 # Código fuente del Algoritmo Genético
-├── algoritmoMemetico.py                 # Código fuente del Algoritmo Memético (+ Búsqueda Local)
-├── ejecutar_comparativa.py              # Script para ejecutar batería completa de pruebas
-├── ejecutar_experimentos.py             # Script para corridas múltiples con semillas
-├── procesar_resultados.py              # Procesador de resultados y generador de tablas
-├── requirements.txt                     # Dependencias (numpy, pandas, etc.)
-└── README.md                            # Documentación del proyecto
+├── pfsp/                            # Biblioteca de operadores, reutilizable
+│   ├── instance.py                  # Lectura y validación de instancias de Taillard
+│   ├── makespan.py                  # Función de aptitud (Cmax)
+│   ├── rng.py                       # Primitivas de números aleatorios
+│   ├── operators.py                 # Población, selección, cruza, mutación, reemplazo
+│   ├── local_search.py              # Búsqueda local por inserción (acelerada)
+│   ├── neh.py                       # Heurística constructiva NEH
+│   ├── ga.py                        # Ciclo evolutivo común al AG y al Memético
+│   ├── cli.py                       # Validación de parámetros de entrada
+│   └── salida.py                    # Impresión de resultados y registro en CSV
+├── data/                            # Instancias de Taillard (.txt)
+├── results/
+│   ├── comparativa_ag_vs_memetico.csv
+│   ├── traza_convergencia.csv       # Generación en que se halló cada mejora
+│   ├── barrido_parametros.csv       # Barrido para justificar los parámetros
+│   └── graficos/                    # Figuras del informe (.png)
+├── algoritmoGenetico.py             # Programa del Algoritmo Genético
+├── algoritmoMemetico.py             # Programa del Algoritmo Memético
+├── ejecutar_comparativa.py          # Batería experimental completa
+├── barrido_parametros.py            # Barrido de parámetros (un factor a la vez)
+├── procesar_resultados.py           # Tabla resumen en consola
+├── generar_graficos.py              # Figuras del informe
+├── test_makespan.py                 # Chequeos de correctitud
+└── requirements.txt
 ```
+
+### Dónde está cada función pedida
+
+| Requerimiento | Archivo | Función |
+|---|---|---|
+| Número real aleatorio en [0,1] | `pfsp/rng.py` | `aleatorio_real` |
+| Entero aleatorio en un rango | `pfsp/rng.py` | `aleatorio_entero` |
+| Leer instancia de Taillard | `pfsp/instance.py` | `leer_instancia_taillard` |
+| Inicializar población | `pfsp/operators.py` | `inicializar_poblacion` |
+| Calcular fitness | `pfsp/makespan.py` | `calcular_makespan`, `evaluar_poblacion` |
+| Seleccionar individuo | `pfsp/operators.py` | `seleccion_torneo` |
+| Cruzar dos individuos | `pfsp/operators.py` | `cruce_ox` |
+| Mutar individuo | `pfsp/operators.py` | `mutacion_swap`, `mutacion_insercion`, `mutar_individuo` |
+| Reemplazo con elitismo | `pfsp/operators.py` | `reemplazo_mu_lambda` |
+| Búsqueda local (Memético) | `pfsp/local_search.py` | `busqueda_local_insercion` |
+
+Los dos programas principales reexportan todas estas funciones, así que también se llegan como `algoritmoGenetico.seleccion_torneo`, etc.
 
 ---
 
-## 3. Instrucciones de Ejecución (CLI)
+## 3. Ejecución
 
 ### A. Algoritmo Genético
 
-El programa recibe los parámetros por línea de comandos en el siguiente orden:
-
 ```bash
-python algoritmoGenetico.py <semilla> <archivo_instancia> <tam_poblacion> <prob_cruza> <prob_mutacion> <iteraciones> [salida_csv]
+python algoritmoGenetico.py <semilla> <archivo_instancia> <tam_poblacion> <prob_cruza> <prob_mutacion> <iteraciones> [salida.csv]
 ```
 
-**Parámetros:**
-* `semilla`: número entero para la reproducibilidad (ej: `1`).
-* `archivo_instancia`: ruta al archivo de la instancia de Taillard (ej: `data/ins_20_5_00.txt`).
-* `tam_poblacion`: entero positivo, tamaño de la población (ej: `60`).
-* `prob_cruza`: número real entre 0.0 y 1.0 con punto decimal (ej: `0.85`).
-* `prob_mutacion`: número real entre 0.0 y 1.0 con punto decimal (ej: `0.20`).
-* `iteraciones`: número entero positivo de generaciones (ej: `300`).
-* `salida_csv`: *(opcional)* ruta a archivo CSV donde registrar el resultado.
+* `semilla`: entero no negativo (ej: `1`).
+* `archivo_instancia`: ruta a la instancia (ej: `data/ins_20_5_00.txt`).
+* `tam_poblacion`: entero positivo (ej: `60`).
+* `prob_cruza`: real entre 0.0 y 1.0, con punto decimal (ej: `0.85`).
+* `prob_mutacion`: real entre 0.0 y 1.0, con punto decimal (ej: `0.20`).
+* `iteraciones`: entero positivo de generaciones (ej: `300`).
+* `salida.csv`: *(opcional)* archivo donde registrar el resultado.
 
-**Ejemplo de ejecución:**
 ```bash
 python algoritmoGenetico.py 1 data/ins_20_5_00.txt 60 0.85 0.20 300
-```
-
-Con guardado a CSV:
-```bash
 python algoritmoGenetico.py 1 data/ins_20_5_00.txt 60 0.85 0.20 300 results/resultado_ag.csv
 ```
 
----
-
 ### B. Algoritmo Memético
 
-Incorpora una etapa de explotación mediante búsqueda local por inserción (*Insertion Local Search*) sobre el individuo élite:
+Agrega un parámetro opcional antes del CSV:
 
 ```bash
-python algoritmoMemetico.py <semilla> <archivo_instancia> <tam_poblacion> <prob_cruza> <prob_mutacion> <iteraciones> [frecuencia_bl] [salida_csv]
+python algoritmoMemetico.py <semilla> <archivo_instancia> <tam_poblacion> <prob_cruza> <prob_mutacion> <iteraciones> [frecuencia_bl] [salida.csv]
 ```
 
-**Parámetros adicionales:**
-* `frecuencia_bl`: *(opcional, default: 1)* frecuencia en generaciones para aplicar la búsqueda local al individuo élite.
-* `salida_csv`: *(opcional)* ruta al archivo CSV de resultados.
+* `frecuencia_bl`: *(opcional, por defecto 1)* cada cuántas generaciones aplicar la búsqueda local.
 
-**Ejemplo de ejecución:**
 ```bash
 python algoritmoMemetico.py 1 data/ins_20_5_00.txt 60 0.85 0.20 300 1 results/resultado_memetico.csv
 ```
 
----
+Cuando se entrega un CSV de salida, también se escribe uno con el sufijo `_traza` que registra en qué generación se halló cada mejora.
 
-### C. Batería Experimental y Tabla Resumen
-
-Para replicar las pruebas experimentales sobre instancias pequeñas, medianas y grandes, y generar la tabla resumen con métricas (Makespan, Upper Bound, RPD % y Tiempo):
+### C. Batería experimental, tabla y figuras
 
 ```bash
-# 1. Ejecutar corridas comparativas (genera results/comparativa_ag_vs_memetico.csv)
-python ejecutar_comparativa.py
-
-# 2. Procesar y visualizar tabla consolidada en consola
-python procesar_resultados.py
+python ejecutar_comparativa.py    # 3 tamaños x 10 semillas x 2 algoritmos
+python procesar_resultados.py     # tabla resumen en consola
+python generar_graficos.py        # figuras en results/graficos/
 ```
+
+### D. Barrido de parámetros
+
+```bash
+python barrido_parametros.py       # ~6 minutos
+```
+
+Varía un parámetro a la vez alrededor de la configuración base, dejando fijos los demás. Sirve para justificar los valores elegidos; `ejecutar_comparativa.py` los usa una vez ya elegidos.
+
+### E. Chequeos de correctitud
+
+```bash
+python test_makespan.py
+```
+
+Verifica, entre otras cosas, que el makespan reportado sea el de la secuencia devuelta, y que la búsqueda local acelerada entregue exactamente lo mismo que recalcular cada inserción desde cero.
 
 ---
 
-## 4. Fundamentos Teóricos del Problema (PFSP)
+## 4. El problema
 
-### 4.1. Definición Formal
-* Se tienen $n$ trabajos ($J_1, J_2, \dots, J_n$) y $m$ máquinas ($M_1, M_2, \dots, M_m$).
-* Cada trabajo debe pasar por todas las máquinas exactamente en el mismo orden: $M_1 \rightarrow M_2 \rightarrow \dots \rightarrow M_m$.
-* Cada trabajo $i$ requiere un tiempo de procesamiento conocido $p_{i,j}$ en la máquina $j$.
-* **Restricción de permutación:** el orden en que los trabajos ingresan a la primera máquina se mantiene idéntico en todas las máquinas subsiguientes.
-* **Objetivo:** encontrar la permutación $\pi = (\pi_1, \pi_2, \dots, \pi_n)$ que minimice el *makespan* ($C_{\max}$), es decir, el instante de finalización del último trabajo en la última máquina.
+### 4.1. Definición
 
-### 4.2. Cálculo de Makespan (Función de Fitness)
-Para una secuencia $\pi$, el tiempo de finalización $C(i, j)$ del trabajo en la posición $i$ en la máquina $j$ se calcula mediante:
+* $n$ trabajos y $m$ máquinas. Cada trabajo pasa por todas las máquinas en el mismo orden $M_1 \rightarrow \dots \rightarrow M_m$.
+* Cada trabajo $i$ tarda $p_{i,j}$ en la máquina $j$.
+* **Restricción de permutación:** el orden de entrada a la primera máquina se mantiene en todas las demás.
+* **Objetivo:** hallar la permutación que minimice el *makespan* $C_{\max}$.
+
+En los archivos de Taillard las **filas son máquinas y las columnas son trabajos**.
+
+### 4.2. Makespan
 
 $$C(i, j) = \max(C(i-1, j), C(i, j-1)) + p_{\pi_i, j}$$
 
-con condiciones de borde $C(0, j) = 0$ y $C(i, 0) = 0$. El valor a minimizar es $C_{\max} = C(n, m)$.
+con $C(0,j) = C(i,0) = 0$; el valor a minimizar es $C_{\max} = C(n, m)$. Basta mantener el vector de términos de las $m$ máquinas, así que evaluar una secuencia cuesta $O(nm)$ y el espacio extra es $O(m)$.
 
-### 4.3. Métrica de Desempeño: RPD (%)
-Para evaluar la calidad de las soluciones respecto al mejor valor conocido (*Upper Bound*, $UB$) de Taillard:
+### 4.3. Métrica: RPD (%)
 
 $$\text{RPD}(\%) = \frac{C_{\max}^{\text{obtenido}} - UB}{UB} \times 100$$
 
----
-
-## 5. Operadores Implementados
-
-* **Representación:** Cromosoma tipo permutación de $n$ enteros (índices de trabajos sin repetición).
-* **Población Inicial:** Generación de permutaciones aleatorias uniformes (`inicializar_poblacion`).
-* **Selección:** Torneo binario determinista ($k=2$) para favorecer individuos con menor makespan (`seleccion_torneo`).
-* **Cruce:** Cruce por Orden (*Order Crossover*, OX) respetando el orden relativo y evitando duplicados (`cruce_ox`).
-* **Mutación:** Combinación probabilística de *Swap* (intercambio de dos posiciones) e *Insertion* (extracción e inserción) (`mutacion_swap`, `mutacion_insercion`).
-* **Reemplazo:** Reemplazo generacional con elitismo estricto (preserva la mejor solución histórica sin reevaluar).
-* **Búsqueda Local (Memético):** Búsqueda local por inserción sobre el individuo élite probando todas las posiciones posibles para cada trabajo hasta convergencia o límite de iteraciones (`busqueda_local_insercion`).
+donde $UB$ es el mejor valor conocido de la instancia.
 
 ---
 
-## 6. Referencias
+## 5. Decisiones de implementación
+
+* **Representación:** permutación de $n$ enteros sin repetición.
+* **Población inicial:** permutaciones aleatorias uniformes, con un individuo sembrado por **NEH**.
+* **Selección:** torneo determinista de tamaño $k=3$. Con $k=2$ la presión selectiva resulta insuficiente y la población deriva sin converger.
+* **Cruce:** *Order Crossover* (OX), que preserva el orden relativo sin producir repetidos.
+* **Mutación:** *swap* o inserción, elegidas con igual probabilidad.
+* **Reemplazo:** $(\mu+\lambda)$ **sin duplicados**. Padres e hijos compiten y sobreviven los $\mu$ mejores distintos. El filtro de duplicados es necesario: sin él, la mejor solución se copia a sí misma hasta llenar la población (en la generación 10 quedaban 2 individuos distintos y 56 copias del mismo) y la cruza pasa a combinar solo clones.
+* **Búsqueda local (Memético):** inserción con *first improvement*, aplicada al mejor individuo y al siguiente mejor que aún no esté en óptimo local. Se recuerdan las secuencias ya optimizadas: como la búsqueda es determinista, relanzarla sobre una de ellas devolvería lo mismo, así que el presupuesto se gasta siempre en alguien que todavía puede mejorar.
+* **Aceleración de Taillard (1990):** evaluar el vecindario de inserción de un trabajo reconstruyendo cada permutación cuesta $O(n^2m)$; con una pasada hacia adelante y otra hacia atrás, cada posición se evalúa en $O(m)$ y el vecindario completo en $O(nm)$. El resultado es idéntico, y está verificado en `test_makespan.py`.
+
+---
+
+## 6. Resultados
+
+10 semillas por combinación, población 60, $P_c = 0.85$, $P_m = 0.20$, 300 generaciones.
+
+| Instancia | Algoritmo | UB | Mejor | RPD mín | RPD prom | Tiempo |
+|---|---|---|---|---|---|---|
+| Pequeña (20x5) | AG | 1278 | 1278 | 0.00% | 0.57% ± 0.20 | 0.36 s |
+| Pequeña (20x5) | Memético | 1278 | **1278** | **0.00%** | **0.06% ± 0.20** | 0.50 s |
+| Mediana (50x10) | AG | 3025 | 3105 | 2.64% | 3.26% ± 0.24 | 1.26 s |
+| Mediana (50x10) | Memético | 3025 | **3034** | **0.30%** | **0.60% ± 0.36** | 3.98 s |
+| Grande (100x10) | AG | 5770 | 5820 | 0.87% | 1.28% ± 0.14 | 2.54 s |
+| Grande (100x10) | Memético | 5770 | **5779** | **0.16%** | **0.45% ± 0.20** | 11.75 s |
+
+Figuras en `results/graficos/`: secuencia de la mejor solución, convergencia por generación de hallazgo, tiempo por semilla, mejor makespan por semilla y dispersión del RPD.
+
+### 6.1. Justificación de los parámetros
+
+Del barrido en 50x10 con 5 semillas (`results/barrido_parametros.csv`). Conviene leerlo con cuidado: con 5 semillas la mayoría de las diferencias cae dentro de una desviación estándar, así que lo que muestra es que la configuración base está en una zona plana razonable, no que sea un óptimo. Las señales que sí se distinguen del ruido:
+
+* **Torneo $k$:** en el AG, $k=2$ es el peor valor probado (3.36% frente a 2.87-3.17% del resto), que es la observación que motivó abandonarlo. En el Memético, $k=4$ y $k=6$ empeoran claramente (1.00% y 1.04% frente a 0.46%): demasiada presión selectiva sobre una población que ya converge rápido por la búsqueda local.
+* **Probabilidad de cruce:** en el Memético, $P_c = 0.95$ empeora a 1.07%. Entre 0.60 y 0.85 no hay diferencia apreciable.
+* **Probabilidad de mutación:** en el Memético, bajarla a 0.05 o 0.10 empeora (0.95% y 0.85%); hace falta mutación para escapar de los óptimos locales que introduce la búsqueda local.
+* **Tamaño de población:** el efecto es pequeño y el costo crece de forma lineal. 60 es un punto intermedio razonable.
+
+---
+
+## 7. Referencias
 
 * Taillard, E. (1993). *Benchmarks for basic scheduling problems*. European Journal of Operational Research, 64(2), 278-285.
+* Taillard, E. (1990). *Some efficient heuristic methods for the flow shop sequencing problem*. European Journal of Operational Research, 47(1), 65-74.
+* Nawaz, M., Enscore, E. E., y Ham, I. (1983). *A heuristic algorithm for the m-machine, n-job flow-shop sequencing problem*. Omega, 11(1), 91-95.
 * Reeves, C. R. (1995). *A genetic algorithm for flowshop sequencing*. Computers & Operations Research, 22(1), 5-13.
