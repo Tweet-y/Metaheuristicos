@@ -188,7 +188,20 @@ donde $UB$ es el mejor valor conocido de la instancia.
 | Grande (100x10) | AG | 5770 | 5820 | 0.87% | 1.28% ± 0.14 | 2.54 s |
 | Grande (100x10) | Memético | 5770 | **5779** | **0.16%** | **0.45% ± 0.20** | 11.75 s |
 
-Figuras en `results/graficos/`: secuencia de la mejor solución, convergencia por generación de hallazgo, tiempo por semilla, mejor makespan por semilla y dispersión del RPD.
+Figuras en `results/graficos/`:
+
+| Archivo | Qué muestra |
+|---|---|
+| `resumen.png` | Las cuatro figuras siguientes en una grilla: una fila por métrica, una columna por tamaño de instancia. |
+| `secuencia_mejor_solucion.png` | Trabajo asignado a cada posición, en la mejor solución de cada método. |
+| `generacion_hallazgo.png` | En qué generación se halla cada mejora del makespan. |
+| `makespan_por_semilla.png` | Mejor makespan alcanzado por cada semilla. |
+| `tiempo_por_semilla.png` | Tiempo de proceso de cada semilla. |
+| `distribucion_rpd.png` | RPD de las 10 semillas, con media y desviación estándar. |
+
+`distribucion_rpd.png` es la que responde cuál método conviene, porque muestra a la vez las dos cosas que lo definen: **qué tan abajo** está la nube de puntos, o sea cuánto se acerca al mejor valor conocido, y **qué tan apretada** está, o sea qué tan poco depende de la semilla con que se lo ejecute. El Memético gana en ambas en los tres tamaños.
+
+Dibuja las 10 semillas una por una en lugar de un diagrama de cajas. Con 10 observaciones y muchos valores repetidos —en 20x5 y en 100x10 el AG entrega el mismo makespan en 9 de las 10 semillas— el percentil 25 y el 75 coinciden, así que la caja queda sin altura ni bigotes y las semillas restantes aparecen marcadas como atípicas sin serlo. El diagrama de puntos evita ese artefacto.
 
 ### 6.1. Justificación de los parámetros
 

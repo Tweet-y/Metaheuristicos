@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
 """Genera las figuras del informe a partir de los CSV de la batería experimental.
 
+Cada métrica se dibuja con una función `dibujar_*` que recibe un eje ya creado.
+Eso permite emitir la misma métrica como figura suelta (tres paneles, uno por
+tamaño de instancia) y como fila de la figura resumen, sin duplicar el código.
+
 Requiere haber corrido antes `python ejecutar_comparativa.py`.
 Uso: python generar_graficos.py
 """
 
 import csv
 import os
-from collections import defaultdict
+import statistics
+from collections import Counter, defaultdict, namedtuple
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.transforms as transforms  # noqa: E402
 
 ARCHIVO_RESULTADOS = "results/comparativa_ag_vs_memetico.csv"
 ARCHIVO_TRAZA = "results/traza_convergencia.csv"
@@ -63,68 +69,64 @@ plt.rcParams.update({
 })
 
 
+# --------------------------------------------------------------------------
+# Datos
+# --------------------------------------------------------------------------
+
 def cargar(ruta):
     with open(ruta, encoding="utf-8") as f:
         return list(csv.DictReader(f, delimiter=";"))
 
 
-def paneles(titulo, ylabel, xlabel, y_titulo=1.02):
-    """Figura de tres paneles, uno por tamaño de instancia (small multiples)."""
-    fig, ejes = plt.subplots(1, 3, figsize=(11.5, 3.5))
-    fig.suptitle(titulo, fontsize=11, fontweight="bold", color=TINTA, y=y_titulo)
-    for eje, tamano in zip(ejes, TAMANOS):
-        eje.set_title(tamano, pad=8)
-        eje.set_xlabel(xlabel)
-    ejes[0].set_ylabel(ylabel)
-    return fig, ejes
+def corridas_de(resultados, tamano, algoritmo):
+    return [r for r in resultados
+            if r["Tamano_Problema"] == tamano and r["Algoritmo"] == algoritmo]
 
 
-def leyenda(fig, forma="linea"):
-    """Leyenda al pie. Para >= 2 series va siempre, así la identidad no es solo color."""
-    if forma == "caja":
-        manejadores = [plt.Rectangle((0, 0), 1, 1, facecolor=COLOR[a], edgecolor="none",
-                                     label=a) for a in ALGORITMOS]
-    else:
-        estilo = "none" if forma == "punto" else "-"
-        manejadores = [plt.Line2D([], [], color=COLOR[a], marker=MARCA[a], linestyle=estilo,
-                                  linewidth=2, markersize=6, markeredgecolor=SUPERFICIE,
-                                  markeredgewidth=1.2, label=a) for a in ALGORITMOS]
-    fig.legend(handles=manejadores, loc="lower center", ncol=len(ALGORITMOS),
-               bbox_to_anchor=(0.5, -0.09))
+def cota_de(resultados, tamano):
+    return next(int(r["Upper_Bound"]) for r in resultados
+                if r["Tamano_Problema"] == tamano)
 
 
-def guardar(fig, nombre):
-    ruta = os.path.join(CARPETA_SALIDA, nombre)
-    fig.savefig(ruta, dpi=200)
-    plt.close(fig)
-    print(f"  [OK] {ruta}")
+def semillas_de(resultados, tamano):
+    return sorted({int(r["Semilla"]) for r in resultados
+                   if r["Tamano_Problema"] == tamano})
 
 
-def grafico_secuencia(resultados):
-    """Trabajo vs posición en la secuencia, para la mejor solución de cada método."""
-    # y_titulo más alto porque cada panel lleva un subtítulo de dos líneas.
-    fig, ejes = paneles("Mejor solución encontrada: trabajo asignado a cada posición",
-                        "ID del trabajo", "Posición en la secuencia", y_titulo=1.12)
+def linea_cota(eje, valor, etiqueta):
+    """Referencia horizontal del mejor valor conocido.
 
-    for eje, tamano in zip(ejes, TAMANOS):
-        cmax_por_algoritmo = []
-        for algoritmo in ALGORITMOS:
-            corridas = [r for r in resultados
-                        if r["Tamano_Problema"] == tamano and r["Algoritmo"] == algoritmo]
-            if not corridas:
-                continue
-            mejor = min(corridas, key=lambda r: int(r["Makespan"]))
-            secuencia = [int(t) for t in mejor["Mejor_Secuencia"].split("-")]
-            tamano_marca = 26 if len(secuencia) <= 20 else (14 if len(secuencia) <= 50 else 7)
-            eje.scatter(range(len(secuencia)), secuencia, s=tamano_marca,
-                        c=COLOR[algoritmo], marker=MARCA[algoritmo],
-                        edgecolors=SUPERFICIE, linewidths=0.8, zorder=3)
-            cmax_por_algoritmo.append(f"{algoritmo} {mejor['Makespan']}")
-        # El Cmax va en el título y no en una leyenda dentro del panel, que tapaba puntos.
-        eje.set_title(f"{tamano}\nCmax: {'  ·  '.join(cmax_por_algoritmo)}", pad=8)
+    La etiqueta se ancla al borde derecho del panel (x en fracción del eje, y en
+    unidades de los datos), no a una coordenada de datos: así no se mete entre
+    las marcas por muy distinto que sea el rango de cada panel.
+    """
+    eje.axhline(valor, color=TINTA_TENUE, linewidth=1, zorder=2)
+    transformacion = transforms.blended_transform_factory(eje.transAxes, eje.transData)
+    eje.annotate(etiqueta, xy=(0.99, valor), xycoords=transformacion,
+                 xytext=(0, 3), textcoords="offset points", ha="right", va="bottom",
+                 fontsize=8, color=TINTA_TENUE)
 
-    leyenda(fig, forma="punto")
-    guardar(fig, "secuencia_mejor_solucion.png")
+
+# --------------------------------------------------------------------------
+# Una función por métrica: dibuja un panel (un tamaño de instancia)
+# --------------------------------------------------------------------------
+
+def dibujar_secuencia(eje, tamano, datos):
+    """Trabajo asignado a cada posición, en la mejor solución de cada método."""
+    resultados = datos["resultados"]
+    cmax = []
+    for algoritmo in ALGORITMOS:
+        corridas = corridas_de(resultados, tamano, algoritmo)
+        if not corridas:
+            continue
+        mejor = min(corridas, key=lambda r: int(r["Makespan"]))
+        secuencia = [int(t) for t in mejor["Mejor_Secuencia"].split("-")]
+        marca = 26 if len(secuencia) <= 20 else (14 if len(secuencia) <= 50 else 7)
+        eje.scatter(range(len(secuencia)), secuencia, s=marca, c=COLOR[algoritmo],
+                    marker=MARCA[algoritmo], edgecolors=SUPERFICIE, linewidths=0.8,
+                    zorder=3)
+        cmax.append(f"{algoritmo} {mejor['Makespan']}")
+    return "Cmax: " + "  ·  ".join(cmax)
 
 
 def _curva_mejor_hasta_ahora(pares, generaciones):
@@ -140,149 +142,220 @@ def _curva_mejor_hasta_ahora(pares, generaciones):
     return curva
 
 
-def grafico_hallazgo(resultados, trazas):
+def dibujar_hallazgo(eje, tamano, datos):
     """Generación en que se halló cada mejora, contra el makespan alcanzado."""
-    generaciones = int(resultados[0]["Iteraciones"])
-    por_grupo = defaultdict(lambda: defaultdict(list))
-    for t in trazas:
-        por_grupo[(t["Tamano_Problema"], t["Algoritmo"])][t["Semilla"]].append(
-            (int(t["Generacion"]), int(t["Makespan"])))
+    generaciones = datos["generaciones"]
+    for algoritmo in ALGORITMOS:
+        semillas = datos["trazas"].get((tamano, algoritmo), {})
+        if not semillas:
+            continue
+        curvas = [_curva_mejor_hasta_ahora(sorted(p), generaciones)
+                  for p in semillas.values()]
+        promedio = [sum(v) / len(v) for v in zip(*curvas)]
+        eje.step(range(generaciones + 1), promedio, where="post",
+                 color=COLOR[algoritmo], linewidth=2, zorder=3)
+        hallazgos = sorted({g for pares in semillas.values() for g, _ in pares})
+        eje.scatter(hallazgos, [promedio[g] for g in hallazgos], s=18,
+                    c=COLOR[algoritmo], marker=MARCA[algoritmo],
+                    edgecolors=SUPERFICIE, linewidths=0.8, zorder=4)
 
-    cotas = {r["Tamano_Problema"]: int(r["Upper_Bound"]) for r in resultados}
-
-    fig, ejes = paneles("Convergencia: en qué generación se halla cada mejora del makespan",
-                        "Makespan (promedio de 10 semillas)", "Generación")
-
-    for eje, tamano in zip(ejes, TAMANOS):
-        for algoritmo in ALGORITMOS:
-            semillas = por_grupo.get((tamano, algoritmo), {})
-            if not semillas:
-                continue
-            curvas = [_curva_mejor_hasta_ahora(sorted(p), generaciones)
-                      for p in semillas.values()]
-            promedio = [sum(valores) / len(valores) for valores in zip(*curvas)]
-            eje.step(range(generaciones + 1), promedio, where="post",
-                     color=COLOR[algoritmo], linewidth=2, zorder=3)
-
-            # Marca solo las generaciones donde de verdad hubo un hallazgo.
-            hallazgos = sorted({g for pares in semillas.values() for g, _ in pares})
-            eje.scatter(hallazgos, [promedio[g] for g in hallazgos], s=18,
-                        c=COLOR[algoritmo], marker=MARCA[algoritmo],
-                        edgecolors=SUPERFICIE, linewidths=0.8, zorder=4)
-
-        cota = cotas[tamano]
-        eje.axhline(cota, color=TINTA_TENUE, linewidth=1, zorder=2)
-        eje.annotate(f"UB {cota}", xy=(generaciones, cota), xytext=(-4, 4),
-                     textcoords="offset points", ha="right", va="bottom",
-                     fontsize=8, color=TINTA_TENUE)
-
-    leyenda(fig)
-    guardar(fig, "generacion_hallazgo.png")
+    cota = cota_de(datos["resultados"], tamano)
+    linea_cota(eje, cota, f"UB {cota}")
+    return None
 
 
-def grafico_tiempo_por_semilla(resultados):
-    """Distribución del tiempo de proceso según la semilla."""
-    fig, ejes = paneles("Tiempo de proceso por semilla",
-                        "Tiempo (segundos)", "Semilla")
-
-    for eje, tamano in zip(ejes, TAMANOS):
-        semillas = sorted({int(r["Semilla"]) for r in resultados
-                           if r["Tamano_Problema"] == tamano})
-        ancho = 0.38
-        for desplazamiento, algoritmo in zip((-ancho / 2, ancho / 2), ALGORITMOS):
-            tiempos = {int(r["Semilla"]): float(r["Tiempo_Seg"]) for r in resultados
-                       if r["Tamano_Problema"] == tamano and r["Algoritmo"] == algoritmo}
-            if not tiempos:
-                continue
-            eje.bar([s + desplazamiento for s in semillas],
-                    [tiempos[s] for s in semillas],
-                    width=ancho - 0.04, color=COLOR[algoritmo], zorder=3)
-        eje.set_xticks(semillas)
-
-    leyenda(fig, forma="caja")
-    guardar(fig, "tiempo_por_semilla.png")
+def dibujar_tiempo(eje, tamano, datos):
+    """Tiempo de proceso de cada semilla."""
+    resultados = datos["resultados"]
+    semillas = semillas_de(resultados, tamano)
+    ancho = 0.38
+    for desplazamiento, algoritmo in zip((-ancho / 2, ancho / 2), ALGORITMOS):
+        tiempos = {int(r["Semilla"]): float(r["Tiempo_Seg"])
+                   for r in corridas_de(resultados, tamano, algoritmo)}
+        if not tiempos:
+            continue
+        eje.bar([s + desplazamiento for s in semillas], [tiempos[s] for s in semillas],
+                width=ancho - 0.04, color=COLOR[algoritmo], zorder=3)
+    eje.set_xticks(semillas)
+    return None
 
 
-def grafico_makespan_por_semilla(resultados):
+def dibujar_makespan(eje, tamano, datos):
     """Mejor makespan alcanzado por cada semilla.
 
-    Va como diagrama de puntos y no de barras: los valores están muy juntos, así
-    que una barra desde cero no dejaría ver la diferencia, y una barra con el eje
-    cortado exageraría visualmente diferencias de décimas.
+    Diagrama de puntos y no de barras: los valores están muy juntos, una barra
+    desde cero no dejaría ver la diferencia y una con el eje cortado exageraría
+    décimas. Tampoco se unen los puntos: las semillas son categorías nominales.
     """
-    fig, ejes = paneles("Mejor makespan por semilla", "Makespan", "Semilla")
-
-    for eje, tamano in zip(ejes, TAMANOS):
-        semillas = sorted({int(r["Semilla"]) for r in resultados
-                           if r["Tamano_Problema"] == tamano})
-        for algoritmo in ALGORITMOS:
-            valores = {int(r["Semilla"]): int(r["Makespan"]) for r in resultados
-                       if r["Tamano_Problema"] == tamano and r["Algoritmo"] == algoritmo}
-            if not valores:
-                continue
-            # Sin línea que una las semillas: son categorías nominales, unirlas
-            # sugeriría una tendencia entre semilla 1 y semilla 2 que no existe.
-            eje.plot(semillas, [valores[s] for s in semillas],
-                     color=COLOR[algoritmo], marker=MARCA[algoritmo], linestyle="none",
-                     markersize=7, markeredgecolor=SUPERFICIE,
-                     markeredgewidth=1.2, zorder=3)
-
-        cota = next(int(r["Upper_Bound"]) for r in resultados
-                    if r["Tamano_Problema"] == tamano)
-        eje.axhline(cota, color=TINTA_TENUE, linewidth=1, zorder=2)
-        eje.annotate(f"UB {cota}", xy=(semillas[-1], cota), xytext=(0, 4),
-                     textcoords="offset points", ha="right", va="bottom",
-                     fontsize=8, color=TINTA_TENUE)
-        eje.set_xticks(semillas)
-
-    leyenda(fig, forma="punto")
-    guardar(fig, "makespan_por_semilla.png")
+    resultados = datos["resultados"]
+    semillas = semillas_de(resultados, tamano)
+    for algoritmo in ALGORITMOS:
+        valores = {int(r["Semilla"]): int(r["Makespan"])
+                   for r in corridas_de(resultados, tamano, algoritmo)}
+        if not valores:
+            continue
+        eje.plot(semillas, [valores[s] for s in semillas], color=COLOR[algoritmo],
+                 marker=MARCA[algoritmo], linestyle="none", markersize=7,
+                 markeredgecolor=SUPERFICIE, markeredgewidth=1.2, zorder=3)
+    cota = cota_de(resultados, tamano)
+    linea_cota(eje, cota, f"UB {cota}")
+    eje.set_xticks(semillas)
+    return None
 
 
-def grafico_boxplot_rpd(resultados):
-    """Dispersión del RPD por método y tamaño de instancia.
+def _apilar_empates(valores, centro, paso=0.042):
+    """Reparte los puntos de igual valor a los lados del centro de la categoría.
 
-    Va en tres paneles con escala propia y no en un eje único: el RPD del AG en
-    50x10 es un orden de magnitud mayor que el resto, y en un solo eje aplastaba
-    las cajas del 20x5 hasta volverlas invisibles.
+    Sin azar: el desplazamiento depende solo de cuántos empates hay y del orden.
+    Hace falta porque con 10 semillas hay muchos valores repetidos y, sin
+    separarlos, nueve puntos se dibujarian uno encima de otro y pareceria uno.
     """
-    fig, ejes = paneles("Dispersión del RPD sobre 10 semillas", "RPD (%)", "")
+    conteo = Counter(valores)
+    vistos = Counter()
+    posiciones = []
+    for valor in valores:
+        indice = vistos[valor]
+        vistos[valor] += 1
+        posiciones.append(centro + (indice - (conteo[valor] - 1) / 2) * paso)
+    return posiciones
 
-    for eje, tamano in zip(ejes, TAMANOS):
-        datos = []
-        colores = []
-        etiquetas = []
-        for algoritmo in ALGORITMOS:
-            rpds = [float(r["RPD_%"]) for r in resultados
-                    if r["Tamano_Problema"] == tamano and r["Algoritmo"] == algoritmo]
-            if not rpds:
-                continue
-            datos.append(rpds)
-            colores.append(COLOR[algoritmo])
+
+def dibujar_distribucion(eje, tamano, datos):
+    """RPD de cada semilla, con la media y la desviación estándar.
+
+    Reemplaza al diagrama de cajas: con 10 semillas y muchos empates, en varios
+    grupos el percentil 25 y el 75 coinciden, la caja queda sin altura ni
+    bigotes y las semillas restantes aparecen marcadas como atípicas. Mostrar
+    las 10 observaciones evita ese artefacto y deja leer las dos cosas que
+    importan: qué tan abajo está la nube (cercanía al UB) y qué tan apretada
+    está (consistencia entre semillas).
+    """
+    resultados = datos["resultados"]
+    etiquetas = []
+    for centro, algoritmo in enumerate(ALGORITMOS):
+        rpds = sorted(float(r["RPD_%"])
+                      for r in corridas_de(resultados, tamano, algoritmo))
+        if not rpds:
             etiquetas.append(algoritmo)
+            continue
+        media = statistics.mean(rpds)
+        desviacion = statistics.stdev(rpds) if len(rpds) > 1 else 0.0
 
-        cajas = eje.boxplot(datos, positions=range(len(datos)), widths=0.45,
-                            patch_artist=True,
-                            medianprops={"color": SUPERFICIE, "linewidth": 1.6},
-                            flierprops={"marker": ".", "markersize": 5,
-                                        "markerfacecolor": TINTA_TENUE,
-                                        "markeredgecolor": "none"})
-        for caja, color in zip(cajas["boxes"], colores):
-            caja.set(facecolor=color, edgecolor=color, linewidth=1)
-        for parte in ("whiskers", "caps"):
-            for linea in cajas[parte]:
-                linea.set(color=EJE, linewidth=1)
+        # Desviación estándar como barra vertical, detrás de los puntos.
+        eje.plot([centro, centro], [media - desviacion, media + desviacion],
+                 color=EJE, linewidth=1.4, zorder=2, solid_capstyle="round")
+        eje.plot(_apilar_empates(rpds, centro), rpds, color=COLOR[algoritmo],
+                 marker=MARCA[algoritmo], linestyle="none", markersize=6,
+                 markeredgecolor=SUPERFICIE, markeredgewidth=1.0, zorder=3)
+        # Media como trazo horizontal ancho.
+        eje.plot([centro - 0.2, centro + 0.2], [media, media], color=TINTA,
+                 linewidth=1.6, zorder=4)
+        # Los valores van en el rotulo del eje y no como anotacion flotante:
+        # dentro del panel chocaban con la nube de puntos.
+        etiquetas.append(f"{algoritmo}\nmedia {media:.2f}%\nsd {desviacion:.2f}")
 
-        eje.set_xticks(range(len(etiquetas)))
-        eje.set_xticklabels(etiquetas)
-        eje.set_ylim(bottom=min(-0.05, eje.get_ylim()[0]))
-        eje.axhline(0, color=TINTA_TENUE, linewidth=1, zorder=2)
-        eje.annotate("UB", xy=(len(etiquetas) - 0.5, 0), xytext=(0, 3),
-                     textcoords="offset points", ha="right", va="bottom",
-                     fontsize=8, color=TINTA_TENUE)
+    eje.set_xticks(range(len(ALGORITMOS)))
+    eje.set_xticklabels(etiquetas)
+    eje.set_xlim(-0.6, len(ALGORITMOS) - 0.4)
+    eje.set_ylim(bottom=min(-0.08, eje.get_ylim()[0]))
+    linea_cota(eje, 0, "UB (RPD 0%)")
+    return None
 
-    leyenda(fig, forma="caja")
-    guardar(fig, "boxplot_rpd.png")
+
+# --------------------------------------------------------------------------
+# Composición de figuras
+# --------------------------------------------------------------------------
+
+Metrica = namedtuple(
+    "Metrica", "nombre titulo fila ylabel xlabel dibujar leyenda en_resumen")
+
+METRICAS = [
+    Metrica("secuencia_mejor_solucion",
+            "Mejor solución encontrada: trabajo asignado a cada posición",
+            "Secuencia", "ID del trabajo", "Posición en la secuencia",
+            dibujar_secuencia, "punto", True),
+    Metrica("generacion_hallazgo",
+            "Convergencia: en qué generación se halla cada mejora del makespan",
+            "Convergencia", "Makespan (promedio)", "Generación",
+            dibujar_hallazgo, "linea", True),
+    Metrica("makespan_por_semilla",
+            "Mejor makespan por semilla",
+            "Calidad por semilla", "Makespan", "Semilla",
+            dibujar_makespan, "punto", True),
+    Metrica("tiempo_por_semilla",
+            "Tiempo de proceso por semilla",
+            "Costo por semilla", "Tiempo (segundos)", "Semilla",
+            dibujar_tiempo, "caja", True),
+    # Fuera del resumen: se lee mejor sola, y es la figura que responde cuál
+    # metodo es a la vez mas consistente y mas cercano al UB.
+    Metrica("distribucion_rpd",
+            "Distribución del RPD: cercanía al UB y consistencia entre semillas",
+            "Dispersión", "RPD (%)", "",
+            dibujar_distribucion, "punto", False),
+]
+
+
+def leyenda(fig, forma, y=-0.09):
+    """Leyenda al pie. Con dos series va siempre, así la identidad no es solo color."""
+    if forma == "caja":
+        manejadores = [plt.Rectangle((0, 0), 1, 1, facecolor=COLOR[a], edgecolor="none",
+                                     label=a) for a in ALGORITMOS]
+    else:
+        estilo = "none" if forma == "punto" else "-"
+        manejadores = [plt.Line2D([], [], color=COLOR[a], marker=MARCA[a],
+                                  linestyle=estilo, linewidth=2, markersize=6,
+                                  markeredgecolor=SUPERFICIE, markeredgewidth=1.2,
+                                  label=a) for a in ALGORITMOS]
+    fig.legend(handles=manejadores, loc="lower center", ncol=len(ALGORITMOS),
+               bbox_to_anchor=(0.5, y))
+
+
+def guardar(fig, nombre):
+    ruta = os.path.join(CARPETA_SALIDA, nombre)
+    fig.savefig(ruta, dpi=200)
+    plt.close(fig)
+    print(f"  [OK] {ruta}")
+
+
+def figura_individual(metrica, datos):
+    """Una métrica en tres paneles, uno por tamaño de instancia."""
+    fig, ejes = plt.subplots(1, 3, figsize=(11.5, 3.6), layout="constrained")
+    fig.suptitle(metrica.titulo, fontsize=11, fontweight="bold", color=TINTA)
+
+    for eje, tamano in zip(ejes, TAMANOS):
+        subtitulo = metrica.dibujar(eje, tamano, datos)
+        eje.set_title(f"{tamano}\n{subtitulo}" if subtitulo else tamano, pad=8)
+        eje.set_xlabel(metrica.xlabel)
+    ejes[0].set_ylabel(metrica.ylabel)
+
+    leyenda(fig, metrica.leyenda)
+    guardar(fig, f"{metrica.nombre}.png")
+
+
+def figura_resumen(datos):
+    """Todas las métricas en una grilla: una fila por métrica, una columna por tamaño.
+
+    El tamaño de instancia rotula la columna una sola vez, en la fila de arriba;
+    la métrica rotula la fila desde el eje y de la primera columna. Así ninguna
+    etiqueta se repite doce veces.
+    """
+    metricas = [m for m in METRICAS if m.en_resumen]
+    fig, ejes = plt.subplots(len(metricas), 3, figsize=(11.5, 3.0 * len(metricas)),
+                             layout="constrained")
+    fig.suptitle("Resumen experimental: Algoritmo Genético vs Algoritmo Memético",
+                 fontsize=12, fontweight="bold", color=TINTA)
+
+    for fila, metrica in zip(ejes, metricas):
+        for eje, tamano in zip(fila, TAMANOS):
+            metrica.dibujar(eje, tamano, datos)
+            eje.set_xlabel(metrica.xlabel)
+        fila[0].set_ylabel(f"{metrica.fila}\n{metrica.ylabel}")
+
+    for eje, tamano in zip(ejes[0], TAMANOS):
+        eje.set_title(tamano, pad=8, fontsize=11)
+
+    leyenda(fig, "punto", y=-0.028)
+    guardar(fig, "resumen.png")
 
 
 def main():
@@ -292,14 +365,21 @@ def main():
     os.makedirs(CARPETA_SALIDA, exist_ok=True)
 
     resultados = cargar(ARCHIVO_RESULTADOS)
-    trazas = cargar(ARCHIVO_TRAZA)
+    trazas = defaultdict(lambda: defaultdict(list))
+    for t in cargar(ARCHIVO_TRAZA):
+        trazas[(t["Tamano_Problema"], t["Algoritmo"])][t["Semilla"]].append(
+            (int(t["Generacion"]), int(t["Makespan"])))
+
+    datos = {
+        "resultados": resultados,
+        "trazas": trazas,
+        "generaciones": int(resultados[0]["Iteraciones"]),
+    }
 
     print(f"Generando figuras en {CARPETA_SALIDA}/ ...")
-    grafico_secuencia(resultados)
-    grafico_hallazgo(resultados, trazas)
-    grafico_tiempo_por_semilla(resultados)
-    grafico_makespan_por_semilla(resultados)
-    grafico_boxplot_rpd(resultados)
+    for metrica in METRICAS:
+        figura_individual(metrica, datos)
+    figura_resumen(datos)
     print("Listo.")
 
 
