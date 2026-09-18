@@ -83,7 +83,7 @@ def ejecutar():
                       f"(RPD {rpd:5.2f}%) | hallado en gen {traza[-1][0]:3d} | {tiempo:6.2f}s")
 
     with open(ARCHIVO_RESULTADOS, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter=";")
+        writer = csv.writer(f, delimiter=";", lineterminator="\n")
         writer.writerow([
             "Algoritmo", "Tamano_Problema", "Instancia", "Semilla", "Poblacion",
             "Prob_Cruce", "Prob_Mutacion", "Iteraciones", "Makespan", "Upper_Bound",
@@ -92,7 +92,7 @@ def ejecutar():
         writer.writerows(filas_resultado)
 
     with open(ARCHIVO_TRAZA, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter=";")
+        writer = csv.writer(f, delimiter=";", lineterminator="\n")
         writer.writerow(["Algoritmo", "Tamano_Problema", "Semilla", "Generacion", "Makespan"])
         writer.writerows(filas_traza)
 

@@ -18,7 +18,7 @@ def _escribir(ruta_csv, cabecera, filas):
         os.makedirs(carpeta, exist_ok=True)
     existe = os.path.exists(ruta_csv)
     with open(ruta_csv, mode="a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter=";")
+        writer = csv.writer(f, delimiter=";", lineterminator="\n")
         if not existe:
             writer.writerow(cabecera)
         writer.writerows(filas)

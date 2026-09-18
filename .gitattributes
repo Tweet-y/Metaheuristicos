@@ -1,0 +1,6 @@
+# Los CSV se generan desde Python y se versionan; fijar el salto de linea evita
+# que cada regeneracion aparezca como un cambio de archivo completo.
+*.csv text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.png binary

@@ -105,7 +105,7 @@ def main():
                     for semilla, makespan, t in resultados)
 
     with open(ARCHIVO_SALIDA, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter=";")
+        writer = csv.writer(f, delimiter=";", lineterminator="\n")
         writer.writerow(["Algoritmo", "Parametro", "Valor", "Semilla", "Makespan",
                          "Upper_Bound", "RPD_%", "Tiempo_Seg"])
         writer.writerows(filas)
