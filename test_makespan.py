@@ -305,6 +305,8 @@ def test_renovacion_con_reparador():
         pob, fit, n_job, evaluador, frac_renovacion=0.20, reparador=mi_reparador
     )
     assert len(reparaciones) == 2, f"se esperaban 2 llamadas a reparador, hubo {len(reparaciones)}"
+    for entrada in reparaciones:
+        assert list(reversed(entrada)) in pob_ren, "se descartó la salida del reparador"
     assert len(pob_ren) == tam and len(fit_ren) == tam
     for ind in pob_ren:
         assert es_permutacion(ind, n_job)
