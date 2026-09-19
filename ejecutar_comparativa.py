@@ -18,9 +18,7 @@ from pfsp.ga import ejecutar_evolutivo
 from pfsp.instance import leer_instancia_taillard
 
 INSTANCIAS = [
-    ("Pequeña (20x5)",   "data/ins_20_5_00.txt"),
     ("Mediana (50x10)",  "data/ins_50_10_00.txt"),
-    ("Grande (100x10)",  "data/ins_100_10_00.txt"),
 ]
 
 ALGORITMOS = [("AG", False), ("Memetico", True)]
@@ -29,7 +27,7 @@ TAM_POBLA = 60
 PROB_CRUCE = 0.85
 PROB_MUTA = 0.20
 ITERACIONES = 300
-SEMILLAS = list(range(1, 11))
+SEMILLAS = list(range(1, 31))
 
 ARCHIVO_RESULTADOS = "results/comparativa_ag_vs_memetico.csv"
 ARCHIVO_TRAZA = "results/traza_convergencia.csv"

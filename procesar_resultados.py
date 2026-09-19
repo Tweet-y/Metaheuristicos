@@ -10,7 +10,7 @@ from collections import defaultdict
 
 ARCHIVO_CSV = "results/comparativa_ag_vs_memetico.csv"
 
-TAMANOS = ["Pequeña (20x5)", "Mediana (50x10)", "Grande (100x10)"]
+TAMANOS = ["Mediana (50x10)"]
 ALGORITMOS = ["AG", "Memetico"]
 
 
@@ -28,7 +28,7 @@ def analizar():
 
     ancho = 100
     print("\n" + "=" * ancho)
-    print(" TABLA RESUMEN: ALGORITMO GENÉTICO vs ALGORITMO MEMÉTICO")
+    print(" TABLA RESUMEN: ALGORITMO GENÉTICO Y ALGORITMO MEMÉTICO")
     print(f" RPD(%) = (Makespan - UB) / UB * 100, sobre {len(grupos[(TAMANOS[0], ALGORITMOS[0])])} "
           f"semillas por combinación")
     print("=" * ancho)

@@ -114,7 +114,7 @@ Cuando se entrega un CSV de salida, también se escribe uno con el sufijo `_traz
 ### C. Batería experimental, tabla y figuras
 
 ```bash
-python ejecutar_comparativa.py    # 3 tamaños x 10 semillas x 2 algoritmos
+python ejecutar_comparativa.py    # 1 tamaño x 30 semillas x 2 algoritmos
 python procesar_resultados.py     # tabla resumen en consola
 python generar_graficos.py        # figuras en results/graficos/
 ```
@@ -177,31 +177,25 @@ donde $UB$ es el mejor valor conocido de la instancia.
 
 ## 6. Resultados
 
-10 semillas por combinación, población 60, $P_c = 0.85$, $P_m = 0.20$, 300 generaciones.
+30 semillas por combinación, población 60, $P_c = 0.85$, $P_m = 0.20$, 300 generaciones.
 
 | Instancia | Algoritmo | UB | Mejor | RPD mín | RPD prom | Tiempo |
 |---|---|---|---|---|---|---|
-| Pequeña (20x5) | AG | 1278 | 1278 | 0.00% | 0.57% ± 0.20 | 0.36 s |
-| Pequeña (20x5) | Memético | 1278 | **1278** | **0.00%** | **0.06% ± 0.20** | 0.48 s |
-| Mediana (50x10) | AG | 3025 | 3105 | 2.64% | 3.26% ± 0.24 | 1.23 s |
-| Mediana (50x10) | Memético | 3025 | **3034** | **0.30%** | **0.60% ± 0.36** | 3.96 s |
-| Grande (100x10) | AG | 5770 | 5820 | 0.87% | 1.28% ± 0.14 | 2.42 s |
-| Grande (100x10) | Memético | 5770 | **5779** | **0.16%** | **0.45% ± 0.20** | 11.06 s |
+| Mediana (50x10) | AG | 3025 | 3091 | 2.18% | 3.24% ± 0.28 | 1.95 s |
+| Mediana (50x10) | Memético | 3025 | 3025 | 0.00% | 0.65% ± 0.39 | 6.54 s |
 
-Figuras en `results/graficos/`:
+Figuras en `results/graficos/` (generadas para cada algoritmo, `{metrica}_ag.png` y `{metrica}_memetico.png`):
 
 | Archivo | Qué muestra |
 |---|---|
-| `resumen.png` | Las cuatro figuras siguientes en una grilla: una fila por métrica, una columna por tamaño de instancia. |
-| `secuencia_mejor_solucion.png` | Trabajo asignado a cada posición, en la mejor solución de cada método. |
-| `generacion_hallazgo.png` | En qué generación se halla cada mejora del makespan. |
-| `makespan_por_semilla.png` | Mejor makespan alcanzado por cada semilla. |
-| `tiempo_por_semilla.png` | Tiempo de proceso de cada semilla. |
-| `distribucion_rpd.png` | RPD de las 10 semillas, con media y desviación estándar. |
+| `resumen_{algoritmo}.png` | Las cuatro métricas siguientes en una columna para el algoritmo correspondiente. |
+| `secuencia_mejor_solucion_{algoritmo}.png` | Trabajo asignado a cada posición en la mejor solución encontrada. |
+| `generacion_hallazgo_{algoritmo}.png` | En qué generación se halla cada mejora del makespan (promedio). |
+| `makespan_por_semilla_{algoritmo}.png` | Mejor makespan alcanzado por cada una de las 30 semillas. |
+| `tiempo_por_semilla_{algoritmo}.png` | Tiempo de proceso de cada semilla. |
+| `distribucion_rpd_{algoritmo}.png` | RPD con diagrama de caja y las 30 observaciones superpuestas. |
 
-`distribucion_rpd.png` es la que responde cuál método conviene, porque muestra a la vez las dos cosas que lo definen: **qué tan abajo** está la nube de puntos, o sea cuánto se acerca al mejor valor conocido, y **qué tan apretada** está, o sea qué tan poco depende de la semilla con que se lo ejecute. El Memético gana en ambas en los tres tamaños.
-
-Dibuja las 10 semillas una por una en lugar de un diagrama de cajas. Con 10 observaciones y muchos valores repetidos —en 20x5 y en 100x10 el AG entrega el mismo makespan en 9 de las 10 semillas— el percentil 25 y el 75 coinciden, así que la caja queda sin altura ni bigotes y las semillas restantes aparecen marcadas como atípicas sin serlo. El diagrama de puntos evita ese artefacto.
+`distribucion_rpd_{algoritmo}.png` muestra el diagrama de cajas con las 30 semillas superpuestas. Permite observar tanto la dispersión como el número de semillas que empatan en cada valor de RPD respecto al UB.
 
 ### 6.1. Justificación de los parámetros
 
