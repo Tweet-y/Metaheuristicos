@@ -2,14 +2,15 @@
 """Genera las figuras del informe a partir de los CSV de la batería experimental.
 
 Cada métrica se dibuja con una función `dibujar_*` que recibe un eje ya creado
-y el algoritmo a graficar. Emite figuras individuales por algoritmo y una figura
-resumen en columna para cada algoritmo.
+y el algoritmo a graficar. Emite figuras individuales por algoritmo e instancia
+y una figura resumen en columna para cada algoritmo e instancia.
 
 Requiere haber corrido antes `python ejecutar_comparativa.py`.
 Uso: python generar_graficos.py
 """
 
 import csv
+import glob
 import os
 import statistics
 from collections import Counter, defaultdict, namedtuple
@@ -20,12 +21,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import matplotlib.transforms as transforms  # noqa: E402
 
-ARCHIVO_RESULTADOS = "results/comparativa_ag_vs_memetico.csv"
-ARCHIVO_TRAZA = "results/traza_convergencia.csv"
 CARPETA_SALIDA = "results/graficos"
-
-TAMANO = "Mediana (50x10)"
 ALGORITMOS = ["AG", "Memetico"]
+
+# Solo estas instancias llevan figuras al informe; del resto del barrido basta el
+# CSV. 20_5 y 500_20 las compila otro integrante del grupo, así que en esta máquina
+# normalmente solo sale 100_5.
+INSTANCIAS_GRAFICAS = {"20_5_00", "500_20_00", "100_5_00"}
 
 # El CSV guarda el identificador sin tilde; las figuras del informe la llevan.
 NOMBRE = {"AG": "AG", "Memetico": "Memético"}
@@ -82,13 +84,11 @@ def cargar(ruta):
 
 
 def corridas_de(resultados, algoritmo):
-    return [r for r in resultados
-            if r["Tamano_Problema"] == TAMANO and r["Algoritmo"] == algoritmo]
+    return [r for r in resultados if r["Algoritmo"] == algoritmo]
 
 
 def cota_de(resultados):
-    return next(int(r["Upper_Bound"]) for r in resultados
-                if r["Tamano_Problema"] == TAMANO)
+    return int(resultados[0]["Upper_Bound"])
 
 
 def semillas_de(resultados, algoritmo):
@@ -135,7 +135,7 @@ def _curva_mejor_hasta_ahora(pares, generaciones):
 def dibujar_hallazgo(eje, algoritmo, datos):
     """Generación en que se halló cada mejora, contra el makespan alcanzado."""
     generaciones = datos["generaciones"]
-    semillas = datos["trazas"].get((TAMANO, algoritmo), {})
+    semillas = datos["trazas"].get(algoritmo, {})
     if not semillas:
         return None
     curvas = [_curva_mejor_hasta_ahora(sorted(p), generaciones)
@@ -186,13 +186,7 @@ def dibujar_makespan(eje, algoritmo, datos):
 
 
 def _apilar_empates(valores, centro=0, ancho_max=0.24):
-    """Reparte los puntos de igual valor a los lados del centro de la categoría.
-
-    Sin azar: el desplazamiento depende solo de cuántos empates hay y del orden.
-    El paso se escala por el máximo de empates y además tiene tope: con 30
-    semillas hay pilas de hasta doce puntos y, repartidas sobre todo el ancho de
-    la caja, dejan de leerse como observaciones y parecen una línea punteada.
-    """
+    """Reparte los puntos de igual valor a los lados del centro de la categoría."""
     conteo = Counter(valores)
     max_empates = max(conteo.values()) if conteo else 1
     paso = min(0.022, ancho_max / max(max_empates, 1))
@@ -233,11 +227,7 @@ def dibujar_distribucion(eje, algoritmo, datos):
     eje.set_xticks([0])
     eje.set_xticklabels([f"{NOMBRE[algoritmo]}\nmedia {media:.2f}%\nsd {desviacion:.2f}"])
     eje.set_xlim(-0.5, 0.5)
-    # El eje se ajusta a los datos: forzar el 0 comprime la caja contra el borde
-    # cuando el método está lejos del UB, y la dispersión entre semillas —que es
-    # lo que esta figura existe para mostrar— deja de verse. La referencia se
-    # dibuja solo si el 0 cae dentro del rango; si no, el eje "RPD (%)" ya dice
-    # que el cero es el UB.
+
     if eje.get_ylim()[0] <= 0:
         linea_cota(eje, 0, "UB (RPD 0%)")
     return None
@@ -270,8 +260,9 @@ METRICAS = [
 ]
 
 
-def guardar(fig, nombre):
-    ruta = os.path.join(CARPETA_SALIDA, nombre)
+def guardar(fig, carpeta, nombre):
+    os.makedirs(carpeta, exist_ok=True)
+    ruta = os.path.join(carpeta, nombre)
     fig.savefig(ruta, dpi=200)
     plt.close(fig)
     print(f"  [OK] {ruta}")
@@ -288,8 +279,8 @@ def figura_individual(metrica, algoritmo, datos):
     eje.set_xlabel(metrica.xlabel)
     eje.set_ylabel(metrica.ylabel)
 
-    slug = algoritmo.lower()
-    guardar(fig, f"{metrica.nombre}_{slug}.png")
+    # El slug de la instancia ya lo lleva la carpeta.
+    guardar(fig, datos["carpeta"], f"{metrica.nombre}_{algoritmo.lower()}.png")
 
 
 def figura_resumen(algoritmo, datos):
@@ -297,7 +288,8 @@ def figura_resumen(algoritmo, datos):
     metricas = [m for m in METRICAS if m.en_resumen]
     fig, ejes = plt.subplots(len(metricas), 1, figsize=(6.5, 2.8 * len(metricas)),
                              layout="constrained")
-    fig.suptitle(f"Resumen experimental: {NOMBRE[algoritmo]} — {TAMANO}",
+    tamano = datos["tamano"]
+    fig.suptitle(f"Resumen experimental: {NOMBRE[algoritmo]} — {tamano}",
                  fontsize=11, fontweight="bold", color=TINTA)
 
     for eje, metrica in zip(ejes, metricas):
@@ -312,35 +304,47 @@ def figura_resumen(algoritmo, datos):
         eje.set_xlabel(metrica.xlabel)
         eje.set_ylabel(metrica.ylabel)
 
-    slug = algoritmo.lower()
-    guardar(fig, f"resumen_{slug}.png")
+    guardar(fig, datos["carpeta"], f"resumen_{algoritmo.lower()}.png")
 
 
 def main():
-    if not os.path.exists(ARCHIVO_RESULTADOS):
-        print(f"Falta {ARCHIVO_RESULTADOS}. Ejecuta primero: python ejecutar_comparativa.py")
+    archivos = sorted(glob.glob("results/comparativa_*.csv"))
+    if not archivos:
+        print("No se encontraron resultados en results/comparativa_*.csv. Ejecuta primero: python ejecutar_comparativa.py")
         return
-    os.makedirs(CARPETA_SALIDA, exist_ok=True)
-
-    resultados = cargar(ARCHIVO_RESULTADOS)
-    trazas = defaultdict(lambda: defaultdict(list))
-    for t in cargar(ARCHIVO_TRAZA):
-        trazas[(t["Tamano_Problema"], t["Algoritmo"])][t["Semilla"]].append(
-            (int(t["Generacion"]), int(t["Makespan"])))
-
-    datos = {
-        "resultados": resultados,
-        "trazas": trazas,
-        "generaciones": int(resultados[0]["Iteraciones"]),
-    }
-
     print(f"Generando figuras en {CARPETA_SALIDA}/ ...")
-    for metrica in METRICAS:
-        for algoritmo in ALGORITMOS:
-            figura_individual(metrica, algoritmo, datos)
+    for ruta_comp in archivos:
+        basename = os.path.basename(ruta_comp)
+        slug = basename.replace("comparativa_", "").replace(".csv", "")
+        if slug not in INSTANCIAS_GRAFICAS:
+            print(f"  [omitida] {slug}: fuera de INSTANCIAS_GRAFICAS")
+            continue
+        ruta_traza = os.path.join(os.path.dirname(ruta_comp), f"traza_{slug}.csv")
 
-    for algoritmo in ALGORITMOS:
-        figura_resumen(algoritmo, datos)
+        resultados = cargar(ruta_comp)
+        if not resultados:
+            continue
+
+        trazas = defaultdict(lambda: defaultdict(list))
+        if os.path.exists(ruta_traza):
+            for t in cargar(ruta_traza):
+                trazas[t["Algoritmo"]][t["Semilla"]].append(
+                    (int(t["Generacion"]), int(t["Makespan"])))
+
+        datos = {
+            "resultados": resultados,
+            "trazas": trazas,
+            "generaciones": int(resultados[0]["Iteraciones"]),
+            "tamano": resultados[0]["Tamano_Problema"],
+            "carpeta": os.path.join(CARPETA_SALIDA, slug),
+        }
+
+        for metrica in METRICAS:
+            for algoritmo in ALGORITMOS:
+                figura_individual(metrica, algoritmo, datos)
+
+        for algoritmo in ALGORITMOS:
+            figura_resumen(algoritmo, datos)
 
     print("Listo.")
 

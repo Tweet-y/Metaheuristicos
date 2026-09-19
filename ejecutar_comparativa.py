@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Batería experimental comparando el Algoritmo Genético con el Memético.
 
-Corre los dos algoritmos sobre tres tamaños de instancia y varias semillas, y
-deja dos archivos: uno con el resultado de cada corrida y otro con la traza de
-convergencia (en qué generación se halló cada mejora), que es lo que consume
-`generar_graficos.py`.
+Corre los dos algoritmos sobre cada instancia de `INSTANCIAS` y varias semillas.
+Por instancia deja dos archivos: uno con el resultado de cada corrida y otro con
+la traza de convergencia (en qué generación se halló cada mejora), que es lo que
+consumen `procesar_resultados.py` y `generar_graficos.py`.
 
 Uso: python ejecutar_comparativa.py
 """
@@ -18,7 +18,10 @@ from pfsp.ga import ejecutar_evolutivo
 from pfsp.instance import leer_instancia_taillard
 
 INSTANCIAS = [
-    ("Mediana (50x10)",  "data/ins_50_10_00.txt"),
+    ("50x20",  "data/ins_50_20_00.txt"),
+    ("100x5",  "data/ins_100_5_00.txt"),
+    ("100x10", "data/ins_100_10_00.txt"),
+    ("100x20", "data/ins_100_20_00.txt"),
 ]
 
 ALGORITMOS = [("AG", False), ("Memetico", True)]
@@ -28,9 +31,6 @@ PROB_CRUCE = 0.85
 PROB_MUTA = 0.20
 ITERACIONES = 300
 SEMILLAS = list(range(1, 31))
-
-ARCHIVO_RESULTADOS = "results/comparativa_ag_vs_memetico.csv"
-ARCHIVO_TRAZA = "results/traza_convergencia.csv"
 
 
 def ejecutar():
@@ -46,17 +46,24 @@ def ejecutar():
     print(f" Total corridas: {total}")
     print("=" * 78)
 
-    filas_resultado = []
-    filas_traza = []
     contador = 0
     inicio_global = time.perf_counter()
 
-    for algoritmo, usar_bl in ALGORITMOS:
-        print(f"\n==================== {algoritmo} ====================")
-        for tamano, archivo in INSTANCIAS:
-            matriz, num_maq, num_job, cota_superior, _ = leer_instancia_taillard(archivo)
-            print(f"\n--- {tamano} ({archivo}) | UB conocido: {cota_superior} ---")
+    for tamano, archivo in INSTANCIAS:
+        slug = os.path.splitext(os.path.basename(archivo))[0]
+        if slug.startswith("ins_"):
+            slug = slug[4:]
+        archivo_resultados = f"results/comparativa_{slug}.csv"
+        archivo_traza = f"results/traza_{slug}.csv"
 
+        matriz, num_maq, num_job, cota_superior, _ = leer_instancia_taillard(archivo)
+        print(f"\n==================== {tamano} ({archivo}) | UB conocido: {cota_superior} ====================")
+
+        filas_resultado = []
+        filas_traza = []
+
+        for algoritmo, usar_bl in ALGORITMOS:
+            print(f"\n--- {algoritmo} ---")
             for semilla in SEMILLAS:
                 contador += 1
                 random.seed(semilla)
@@ -77,28 +84,29 @@ def ejecutar():
                 filas_traza.extend(
                     [algoritmo, tamano, semilla, generacion, mk] for generacion, mk in traza)
 
-                print(f"[{contador:02d}/{total}] semilla {semilla:2d} -> Makespan {makespan} "
+                print(f"[{contador:03d}/{total}] {tamano} {algoritmo} semilla {semilla:2d} -> Makespan {makespan} "
                       f"(RPD {rpd:5.2f}%) | hallado en gen {traza[-1][0]:3d} | {tiempo:6.2f}s")
 
-    with open(ARCHIVO_RESULTADOS, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter=";", lineterminator="\n")
-        writer.writerow([
-            "Algoritmo", "Tamano_Problema", "Instancia", "Semilla", "Poblacion",
-            "Prob_Cruce", "Prob_Mutacion", "Iteraciones", "Makespan", "Upper_Bound",
-            "RPD_%", "Tiempo_Seg", "Generacion_Hallazgo", "Mejor_Secuencia",
-        ])
-        writer.writerows(filas_resultado)
+        with open(archivo_resultados, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f, delimiter=";", lineterminator="\n")
+            writer.writerow([
+                "Algoritmo", "Tamano_Problema", "Instancia", "Semilla", "Poblacion",
+                "Prob_Cruce", "Prob_Mutacion", "Iteraciones", "Makespan", "Upper_Bound",
+                "RPD_%", "Tiempo_Seg", "Generacion_Hallazgo", "Mejor_Secuencia",
+            ])
+            writer.writerows(filas_resultado)
 
-    with open(ARCHIVO_TRAZA, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, delimiter=";", lineterminator="\n")
-        writer.writerow(["Algoritmo", "Tamano_Problema", "Semilla", "Generacion", "Makespan"])
-        writer.writerows(filas_traza)
+        with open(archivo_traza, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f, delimiter=";", lineterminator="\n")
+            writer.writerow(["Algoritmo", "Tamano_Problema", "Semilla", "Generacion", "Makespan"])
+            writer.writerows(filas_traza)
+
+        print(f"\n[Guardado] {archivo_resultados}")
+        print(f"[Guardado] {archivo_traza}")
 
     print("\n" + "=" * 78)
     print(" EXPERIMENTACIÓN FINALIZADA")
     print(f" Tiempo total:  {time.perf_counter() - inicio_global:.2f} segundos")
-    print(f" Resultados en: {ARCHIVO_RESULTADOS}")
-    print(f" Trazas en:     {ARCHIVO_TRAZA}")
     print("=" * 78)
 
 

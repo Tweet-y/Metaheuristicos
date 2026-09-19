@@ -41,8 +41,8 @@ Metaheuristicos/
 │   └── salida.py                    # Impresión de resultados y registro en CSV
 ├── data/                            # Instancias de Taillard (.txt)
 ├── results/
-│   ├── comparativa_ag_vs_memetico.csv
-│   ├── traza_convergencia.csv       # Generación en que se halló cada mejora
+│   ├── comparativa_{slug}.csv       # Resultados por instancia (ej. 50_10_00)
+│   ├── traza_{slug}.csv             # Generación en que se halló cada mejora
 │   ├── barrido_parametros.csv       # Barrido para justificar los parámetros
 │   └── graficos/                    # Figuras del informe (.png)
 ├── algoritmoGenetico.py             # Programa del Algoritmo Genético
@@ -114,7 +114,7 @@ Cuando se entrega un CSV de salida, también se escribe uno con el sufijo `_traz
 ### C. Batería experimental, tabla y figuras
 
 ```bash
-python ejecutar_comparativa.py    # 1 tamaño x 30 semillas x 2 algoritmos
+python ejecutar_comparativa.py    # 4 instancias x 30 semillas x 2 algoritmos
 python procesar_resultados.py     # tabla resumen en consola
 python generar_graficos.py        # figuras en results/graficos/
 ```
@@ -184,17 +184,19 @@ donde $UB$ es el mejor valor conocido de la instancia.
 | Mediana (50x10) | AG | 3025 | 3091 | 2.18% | 3.24% ± 0.28 | 1.95 s |
 | Mediana (50x10) | Memético | 3025 | 3025 | 0.00% | 0.65% ± 0.39 | 6.54 s |
 
-Figuras en `results/graficos/` (generadas para cada algoritmo, `{metrica}_ag.png` y `{metrica}_memetico.png`):
+Las figuras van a `results/graficos/{slug}/`, una carpeta por instancia y un archivo `{metrica}_{algoritmo}.png` por cada una:
 
 | Archivo | Qué muestra |
 |---|---|
-| `resumen_{algoritmo}.png` | Las tres métricas siguientes en una columna para el algoritmo correspondiente. |
+| `resumen_{algoritmo}.png` | Las tres métricas siguientes en una columna para el algoritmo e instancia correspondiente. |
 | `generacion_hallazgo_{algoritmo}.png` | En qué generación se halla cada mejora del makespan (promedio). |
 | `makespan_por_semilla_{algoritmo}.png` | Mejor makespan alcanzado por cada una de las 30 semillas. |
 | `tiempo_por_semilla_{algoritmo}.png` | Tiempo de proceso de cada semilla. |
 | `distribucion_rpd_{algoritmo}.png` | RPD con diagrama de caja y las 30 observaciones superpuestas. |
 
 `distribucion_rpd_{algoritmo}.png` muestra el diagrama de cajas con las 30 semillas superpuestas. Permite observar tanto la dispersión como el número de semillas que empatan en cada valor de RPD respecto al UB.
+
+No se grafican todas las instancias del barrido: `generar_graficos.py` solo procesa las de `INSTANCIAS_GRAFICAS`, que son las que el informe necesita. Del resto queda el CSV y la fila en la tabla resumen.
 
 ### 6.1. Justificación de los parámetros
 
