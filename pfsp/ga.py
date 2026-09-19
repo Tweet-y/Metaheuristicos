@@ -12,6 +12,7 @@ from pfsp.operators import (
     inicializar_poblacion,
     mutar_individuo,
     reemplazo_mu_lambda,
+    renovar_poblacion,
     seleccion_torneo,
 )
 
@@ -26,7 +27,8 @@ BL_MUESTRA = 1
 
 def ejecutar_evolutivo(tam_pobla, prob_c, prob_m, iteraciones, matriz, num_maq, num_job,
                        usar_bl=False, freq_bl=1, bl_muestra=BL_MUESTRA, sembrar_neh=True,
-                       cota_superior=None, k_torneo=K_TORNEO, mostrar_progreso=True):
+                       cota_superior=None, k_torneo=K_TORNEO, mostrar_progreso=True,
+                       paciencia_renovacion=None, frac_renovacion=0.20):
     """Ejecuta el ciclo evolutivo y devuelve (mejor_solucion, makespan, traza).
 
     `traza` es la lista de pares (generación, makespan) con cada mejora del mejor
@@ -51,6 +53,7 @@ def ejecutar_evolutivo(tam_pobla, prob_c, prob_m, iteraciones, matriz, num_maq, 
     # vecindario en cada generación, que era donde se iba casi todo el tiempo.
     ya_optimizados = set()
     paso_progreso = max(1, iteraciones // 10)
+    gen_sin_mejora = 0
 
     for gen in range(1, iteraciones + 1):
         if usar_bl and gen % freq_bl == 0:
@@ -88,6 +91,21 @@ def ejecutar_evolutivo(tam_pobla, prob_c, prob_m, iteraciones, matriz, num_maq, 
             mejor_makespan = fitness[0]
             mejor_solucion = list(poblacion[0])
             traza.append((gen, mejor_makespan))
+            gen_sin_mejora = 0
+        else:
+            gen_sin_mejora += 1
+
+        if paciencia_renovacion is not None and gen_sin_mejora >= paciencia_renovacion:
+            poblacion, fitness = renovar_poblacion(
+                poblacion, fitness, num_job,
+                lambda ind: calcular_makespan(ind, matriz, num_maq),
+                frac_renovacion=frac_renovacion,
+            )
+            gen_sin_mejora = 0
+            if fitness[0] < mejor_makespan:
+                mejor_makespan = fitness[0]
+                mejor_solucion = list(poblacion[0])
+                traza.append((gen, mejor_makespan))
 
         if mostrar_progreso and (gen % paso_progreso == 0 or gen == iteraciones):
             print(f"Generación {gen}/{iteraciones}: Mejor Makespan = {mejor_makespan}")

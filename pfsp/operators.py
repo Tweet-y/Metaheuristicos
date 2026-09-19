@@ -142,3 +142,44 @@ def reemplazo_mu_lambda(padres, fitness_padres, hijos, fitness_hijos, sin_duplic
         sobrevivientes.extend(repetidos[:mu - len(sobrevivientes)])
 
     return [list(individuo) for _, individuo in sobrevivientes], [f for f, _ in sobrevivientes]
+
+
+def renovar_poblacion(poblacion, fitness, num_job, evaluador, frac_renovacion=0.20):
+    """Reemplaza los peores individuos tras estancamiento, preservando el élite.
+
+    Genera mitad perturbaciones del élite y mitad soluciones aleatorias uniformes.
+    Inserta directamente en la población evaluando con `evaluador(individuo)`.
+    Si la población tiene tamaño <= 1 o frac_renovacion <= 0, no modifica nada.
+    Devuelve (poblacion, fitness) con el mismo tamaño y ordenados por fitness.
+    """
+    n = len(poblacion)
+    if n <= 1 or frac_renovacion <= 0:
+        return [list(ind) for ind in poblacion], list(fitness)
+
+    num_renovar = int(round(n * frac_renovacion))
+    if num_renovar >= n:
+        num_renovar = n - 1
+    if num_renovar <= 0:
+        return [list(ind) for ind in poblacion], list(fitness)
+
+    pob_nueva = [list(ind) for ind in poblacion]
+    fit_nuevo = list(fitness)
+
+    elite = poblacion[0]
+    nuevos = []
+    n_mutados = num_renovar // 2
+    for _ in range(n_mutados):
+        nuevos.append(mutar_individuo(elite, 1.0))
+    for _ in range(num_renovar - n_mutados):
+        ind = list(range(num_job))
+        random.shuffle(ind)
+        nuevos.append(ind)
+
+    idx_inicio = n - num_renovar
+    for i, ind in enumerate(nuevos):
+        pob_nueva[idx_inicio + i] = ind
+        fit_nuevo[idx_inicio + i] = evaluador(ind)
+
+    ordenados = sorted(zip(fit_nuevo, pob_nueva), key=lambda par: par[0])
+    return [list(ind) for _, ind in ordenados], [f for f, _ in ordenados]
+

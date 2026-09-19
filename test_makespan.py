@@ -15,7 +15,7 @@ import algoritmoGenetico as ag
 import algoritmoMemetico as am
 from pfsp.local_search import busqueda_local_insercion, costos_insercion
 from pfsp.neh import neh
-from pfsp.operators import reemplazo_mu_lambda
+from pfsp.operators import reemplazo_mu_lambda, renovar_poblacion
 
 INSTANCIA = "data/ins_20_5_00.txt"
 
@@ -226,6 +226,65 @@ def test_reproducibilidad():
     print("  [OK] reproducibilidad: misma semilla, misma solución, misma traza")
 
 
+def test_renovacion_conserva_elite_tamano_y_permutaciones():
+    """renovar_poblacion preserva el élite, el tamaño y la validez de permutaciones."""
+    random.seed(8)
+    n_job = 15
+    for tam in (5, 20, 50):
+        pob = [random.sample(range(n_job), n_job) for _ in range(tam)]
+        fit = list(range(100, 100 + tam))
+        elite_antes = list(pob[0])
+        fit_elite_antes = fit[0]
+
+        def evaluador(ind):
+            return sum((i + 1) * job for i, job in enumerate(ind))
+
+        pob_ren, fit_ren = renovar_poblacion(pob, fit, n_job, evaluador, frac_renovacion=0.20)
+        assert len(pob_ren) == tam and len(fit_ren) == tam, "el tamaño de población cambió"
+        for ind in pob_ren:
+            assert es_permutacion(ind, n_job), "individuo no es permutación válida"
+        assert fit_ren == sorted(fit_ren), "la población no quedó ordenada"
+        assert elite_antes in pob_ren, "el élite original se perdió de la población"
+        assert fit_ren[0] <= fit_elite_antes, "el mejor fitness empeoró tras renovación"
+    print("  [OK] renovación: conserva élite, tamaño y permutaciones válidas")
+
+
+def test_renovacion_protege_poblacion_unitaria():
+    """Con población unitaria (tam=1), renovar_poblacion no reemplaza el único élite."""
+    n_job = 10
+    ind = list(range(n_job))
+    fit = [42]
+    pob_ren, fit_ren = renovar_poblacion([ind], fit, n_job, lambda x: 999, frac_renovacion=0.5)
+    assert len(pob_ren) == 1 and pob_ren[0] == ind and fit_ren == [42]
+    print("  [OK] renovación: protege población unitaria sin modificar el élite")
+
+
+def test_renovacion_se_activa_tras_estancamiento():
+    """El ciclo evolutivo activa la renovación tras paciencia_renovacion y reinicia contador."""
+    random.seed(9)
+    matriz, num_maq, num_job, _, _ = ag.leer_instancia_taillard(INSTANCIA)
+    activaciones = []
+
+    import pfsp.ga as ga_mod
+    orig_ga_renovar = ga_mod.renovar_poblacion
+
+    def interceptor(*args, **kwargs):
+        activaciones.append(len(activaciones))
+        return orig_ga_renovar(*args, **kwargs)
+
+    ga_mod.renovar_poblacion = interceptor
+    try:
+        sol, mk, traza = ag.ejecutar_evolutivo(
+            20, 0.85, 0.20, 35, matriz, num_maq, num_job,
+            usar_bl=False, paciencia_renovacion=10, frac_renovacion=0.20, mostrar_progreso=False
+        )
+        assert es_permutacion(sol, num_job)
+        assert len(activaciones) >= 1, "la renovación nunca se activó ante estancamiento"
+    finally:
+        ga_mod.renovar_poblacion = orig_ga_renovar
+    print(f"  [OK] renovación: se activó {len(activaciones)} veces ante estancamiento en 35 gens")
+
+
 if __name__ == "__main__":
     pruebas = [
         test_makespan_vs_oraculo,
@@ -239,6 +298,9 @@ if __name__ == "__main__":
         test_ag_reporta_makespan_real,
         test_memetico_reporta_makespan_real,
         test_reproducibilidad,
+        test_renovacion_conserva_elite_tamano_y_permutaciones,
+        test_renovacion_protege_poblacion_unitaria,
+        test_renovacion_se_activa_tras_estancamiento,
     ]
     for prueba in pruebas:
         print(f"\n{prueba.__name__}:")

@@ -39,6 +39,7 @@ from pfsp.operators import (  # noqa: F401
     mutacion_swap,
     mutar_individuo,
     reemplazo_mu_lambda,
+    renovar_poblacion,
     seleccion_torneo,
 )
 from pfsp.rng import aleatorio_entero, aleatorio_real  # noqa: F401
@@ -48,10 +49,13 @@ ALGORITMO = "AG"
 
 
 def ejecutar_algoritmo_genetico(tam_pobla, prob_c, prob_m, iteraciones, matriz,
-                                num_maq, num_job):
+                                num_maq, num_job, paciencia_renovacion=None,
+                                frac_renovacion=0.20):
     """Algoritmo Genético puro: el ciclo evolutivo sin etapa de búsqueda local."""
     return ejecutar_evolutivo(tam_pobla, prob_c, prob_m, iteraciones, matriz,
-                              num_maq, num_job, usar_bl=False)
+                              num_maq, num_job, usar_bl=False,
+                              paciencia_renovacion=paciencia_renovacion,
+                              frac_renovacion=frac_renovacion)
 
 
 def main():
