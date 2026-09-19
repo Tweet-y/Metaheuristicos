@@ -3,7 +3,13 @@
 from pfsp.local_search import costos_insercion
 
 
-def neh(matriz, num_maq, num_job):
+def orden_neh(matriz, num_maq, num_job):
+    """Ordena los trabajos por tiempo total de proceso decreciente."""
+    totales = [sum(matriz[m][j] for m in range(num_maq)) for j in range(num_job)]
+    return sorted(range(num_job), key=lambda j: -totales[j])
+
+
+def neh(matriz, num_maq, num_job, orden=None):
     """Secuencia construida por NEH.
 
     1. Ordena los trabajos por tiempo total de proceso decreciente, de modo que
@@ -18,8 +24,8 @@ def neh(matriz, num_maq, num_job):
     Sirve para sembrar un individuo de la población inicial: partir de una
     solución razonable en vez de puro azar acorta mucho la búsqueda.
     """
-    totales = [sum(matriz[m][j] for m in range(num_maq)) for j in range(num_job)]
-    orden = sorted(range(num_job), key=lambda j: -totales[j])
+    if orden is None:
+        orden = orden_neh(matriz, num_maq, num_job)
 
     secuencia = [orden[0]]
     for trabajo in orden[1:]:

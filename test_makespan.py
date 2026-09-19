@@ -14,7 +14,7 @@ import random
 import algoritmoGenetico as ag
 import algoritmoMemetico as am
 from pfsp.local_search import busqueda_local_insercion, costos_insercion
-from pfsp.neh import neh
+from pfsp.neh import neh, orden_neh
 from pfsp.operators import reemplazo_mu_lambda, renovar_poblacion
 
 INSTANCIA = "data/ins_20_5_00.txt"
@@ -311,6 +311,20 @@ def test_renovacion_con_reparador():
     print("  [OK] renovación con reparador: aplica reparador a mutantes del élite e invariantes OK")
 
 
+def test_neh_con_orden_personalizado():
+    """neh(..., orden=X) produce permutación válida y neh() sin orden reproduce exacto."""
+    matriz, num_maq, num_job, _, _ = ag.leer_instancia_taillard(INSTANCIA)
+    base = neh(matriz, num_maq, num_job)
+    orden = orden_neh(matriz, num_maq, num_job)
+    con_orden = neh(matriz, num_maq, num_job, orden=orden)
+    assert base == con_orden, "neh() sin orden difiere de neh(..., orden=orden_neh(...))"
+
+    orden_rev = list(reversed(orden))
+    sec_rev = neh(matriz, num_maq, num_job, orden=orden_rev)
+    assert es_permutacion(sec_rev, num_job)
+    print("  [OK] NEH con orden personalizado: permutación válida y regresión idéntica")
+
+
 if __name__ == "__main__":
     pruebas = [
         test_makespan_vs_oraculo,
@@ -328,6 +342,7 @@ if __name__ == "__main__":
         test_renovacion_protege_poblacion_unitaria,
         test_renovacion_se_activa_tras_estancamiento,
         test_renovacion_con_reparador,
+        test_neh_con_orden_personalizado,
     ]
     for prueba in pruebas:
         print(f"\n{prueba.__name__}:")

@@ -6,7 +6,7 @@ comparten este motor y se distinguen solo por el argumento `usar_bl`.
 
 from pfsp.local_search import busqueda_local_insercion
 from pfsp.makespan import calcular_makespan, evaluar_poblacion
-from pfsp.neh import neh
+from pfsp.neh import neh, orden_neh
 from pfsp.operators import (
     cruce_ox,
     inicializar_poblacion,
@@ -29,7 +29,7 @@ def ejecutar_evolutivo(tam_pobla, prob_c, prob_m, iteraciones, matriz, num_maq, 
                        usar_bl=False, freq_bl=1, bl_muestra=BL_MUESTRA, sembrar_neh=True,
                        cota_superior=None, k_torneo=K_TORNEO, mostrar_progreso=True,
                        paciencia_renovacion=None, frac_renovacion=0.20,
-                       reparar_renovados=True):
+                       reparar_renovados=True, semillas_neh=1):
     """Ejecuta el ciclo evolutivo y devuelve (mejor_solucion, makespan, traza).
 
     `traza` es la lista de pares (generación, makespan) con cada mejora del mejor
@@ -40,7 +40,14 @@ def ejecutar_evolutivo(tam_pobla, prob_c, prob_m, iteraciones, matriz, num_maq, 
     """
     poblacion = inicializar_poblacion(tam_pobla, num_job)
     if sembrar_neh:
-        poblacion[0] = neh(matriz, num_maq, num_job)
+        if semillas_neh <= 1:
+            poblacion[0] = neh(matriz, num_maq, num_job)
+        else:
+            orden_base = orden_neh(matriz, num_maq, num_job)
+            poblacion[0] = neh(matriz, num_maq, num_job, orden=orden_base)
+            for i in range(1, min(semillas_neh, tam_pobla)):
+                orden_pert = mutar_individuo(orden_base, 1.0)
+                poblacion[i] = neh(matriz, num_maq, num_job, orden=orden_pert)
     fitness = evaluar_poblacion(poblacion, matriz, num_maq)
 
     idx_mejor = min(range(tam_pobla), key=lambda i: fitness[i])
