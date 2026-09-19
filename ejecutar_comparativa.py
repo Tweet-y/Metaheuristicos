@@ -18,17 +18,14 @@ from pfsp.ga import ejecutar_evolutivo
 from pfsp.instance import leer_instancia_taillard
 
 INSTANCIAS = [
-    ("50x20",  "data/ins_50_20_00.txt"),
-    ("100x5",  "data/ins_100_5_00.txt"),
-    ("100x10", "data/ins_100_10_00.txt"),
-    ("100x20", "data/ins_100_20_00.txt"),
+    ("500x20",  "data/ins_500_20_00.txt"),
 ]
 
 ALGORITMOS = [("AG", False), ("Memetico", True)]
 
 TAM_POBLA = 60
 PROB_CRUCE = 0.85
-PROB_MUTA = 0.20
+PROB_MUTA = 0.60
 ITERACIONES = 300
 SEMILLAS = list(range(1, 31))
 
