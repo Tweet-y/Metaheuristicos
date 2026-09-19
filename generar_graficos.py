@@ -135,22 +135,38 @@ def _curva_mejor_hasta_ahora(pares, generaciones):
 def dibujar_hallazgo(eje, algoritmo, datos):
     """Generación en que se halló cada mejora, contra el makespan alcanzado."""
     generaciones = datos["generaciones"]
-    semillas = datos["trazas"].get(algoritmo, {})
-    if not semillas:
-        return None
-    curvas = [_curva_mejor_hasta_ahora(sorted(p), generaciones)
-              for p in semillas.values()]
-    promedio = [sum(v) / len(v) for v in zip(*curvas)]
-    eje.step(range(generaciones + 1), promedio, where="post",
-             color=COLOR[algoritmo], linewidth=2, zorder=3)
-    hallazgos = sorted({g for pares in semillas.values() for g, _ in pares})
-    eje.scatter(hallazgos, [promedio[g] for g in hallazgos], s=18,
-                c=COLOR[algoritmo], marker=MARCA[algoritmo],
-                edgecolors=SUPERFICIE, linewidths=0.8, zorder=4)
+    semillas_traza = datos["trazas"].get(algoritmo, {})
+    if semillas_traza:
+        curvas = [_curva_mejor_hasta_ahora(sorted(p), generaciones)
+                  for p in semillas_traza.values()]
+        promedio = [sum(v) / len(v) for v in zip(*curvas)]
+        eje.step(range(generaciones + 1), promedio, where="post",
+                 color=COLOR[algoritmo], linewidth=2, zorder=3)
+        hallazgos = sorted({g for pares in semillas_traza.values() for g, _ in pares})
+        eje.scatter(hallazgos, [promedio[g] for g in hallazgos], s=18,
+                    c=COLOR[algoritmo], marker=MARCA[algoritmo],
+                    edgecolors=SUPERFICIE, linewidths=0.8, zorder=4)
 
-    cota = cota_de(datos["resultados"])
-    linea_cota(eje, cota, f"UB {cota}")
-    return None
+        cota = cota_de(datos["resultados"])
+        linea_cota(eje, cota, f"UB {cota}")
+        return None
+
+    # Si no hay archivo de trazas, graficar Generacion_Hallazgo por semilla desde comparativa
+    resultados = datos["resultados"]
+    semillas = semillas_de(resultados, algoritmo)
+    corridas = {int(r["Semilla"]): int(r["Generacion_Hallazgo"])
+                for r in corridas_de(resultados, algoritmo)}
+    if not corridas:
+        return None
+    valores = [corridas[s] for s in semillas]
+    eje.plot(semillas, valores, color=COLOR[algoritmo],
+             marker=MARCA[algoritmo], linestyle="none", markersize=7,
+             markeredgecolor=SUPERFICIE, markeredgewidth=1.2, zorder=3)
+    media = statistics.mean(valores)
+    eje.axhline(media, color=COLOR[algoritmo], linestyle="--", linewidth=1, zorder=2)
+    _configurar_xticks_semillas(eje, semillas)
+    eje.set_ylim(0, max(generaciones, max(valores) + 10))
+    return f"media gen {media:.1f}"
 
 
 def dibujar_tiempo(eje, algoritmo, datos):
@@ -273,13 +289,20 @@ def figura_individual(metrica, algoritmo, datos):
     fig, eje = plt.subplots(1, 1, figsize=(6.0, 3.8), layout="constrained")
     subtitulo = metrica.dibujar(eje, algoritmo, datos)
     titulo = f"{metrica.titulo} — {NOMBRE[algoritmo]}"
+    hay_traza = bool(datos["trazas"].get(algoritmo, {}))
+    xlabel = metrica.xlabel
+    ylabel = metrica.ylabel
+    if metrica.nombre == "generacion_hallazgo" and not hay_traza:
+        titulo = f"Generación de hallazgo por semilla — {NOMBRE[algoritmo]}"
+        xlabel = "Semilla"
+        ylabel = "Generación"
     if subtitulo:
         titulo += f" ({subtitulo})"
     eje.set_title(titulo, pad=8)
-    eje.set_xlabel(metrica.xlabel)
-    eje.set_ylabel(metrica.ylabel)
+    eje.set_xlabel(xlabel)
+    eje.set_ylabel(ylabel)
 
-    # El slug de la instancia ya lo lleva la carpeta.
+    # El tamaño/instancia ya lo lleva la carpeta.
     guardar(fig, datos["carpeta"], f"{metrica.nombre}_{algoritmo.lower()}.png")
 
 
@@ -292,17 +315,24 @@ def figura_resumen(algoritmo, datos):
     fig.suptitle(f"Resumen experimental: {NOMBRE[algoritmo]} — {tamano}",
                  fontsize=11, fontweight="bold", color=TINTA)
 
+    hay_traza = bool(datos["trazas"].get(algoritmo, {}))
     for eje, metrica in zip(ejes, metricas):
         subtitulo = metrica.dibujar(eje, algoritmo, datos)
-        if metrica.titulo.startswith(f"{metrica.fila}:"):
+        xlabel = metrica.xlabel
+        ylabel = metrica.ylabel
+        if metrica.nombre == "generacion_hallazgo" and not hay_traza:
+            titulo_panel = f"{metrica.fila}: Generación de hallazgo por semilla"
+            xlabel = "Semilla"
+            ylabel = "Generación"
+        elif metrica.titulo.startswith(f"{metrica.fila}:"):
             titulo_panel = metrica.titulo
         else:
             titulo_panel = f"{metrica.fila}: {metrica.titulo}"
         if subtitulo:
             titulo_panel += f" ({subtitulo})"
         eje.set_title(titulo_panel, pad=6, fontsize=9)
-        eje.set_xlabel(metrica.xlabel)
-        eje.set_ylabel(metrica.ylabel)
+        eje.set_xlabel(xlabel)
+        eje.set_ylabel(ylabel)
 
     guardar(fig, datos["carpeta"], f"resumen_{algoritmo.lower()}.png")
 
@@ -316,14 +346,14 @@ def main():
     for ruta_comp in archivos:
         basename = os.path.basename(ruta_comp)
         slug = basename.replace("comparativa_", "").replace(".csv", "")
-        if slug not in INSTANCIAS_GRAFICAS:
-            print(f"  [omitida] {slug}: fuera de INSTANCIAS_GRAFICAS")
-            continue
         ruta_traza = os.path.join(os.path.dirname(ruta_comp), f"traza_{slug}.csv")
 
         resultados = cargar(ruta_comp)
         if not resultados:
             continue
+
+        tamano = resultados[0]["Tamano_Problema"]
+        carpeta_instancia = os.path.join(CARPETA_SALIDA, tamano)
 
         trazas = defaultdict(lambda: defaultdict(list))
         if os.path.exists(ruta_traza):
@@ -335,8 +365,8 @@ def main():
             "resultados": resultados,
             "trazas": trazas,
             "generaciones": int(resultados[0]["Iteraciones"]),
-            "tamano": resultados[0]["Tamano_Problema"],
-            "carpeta": os.path.join(CARPETA_SALIDA, slug),
+            "tamano": tamano,
+            "carpeta": carpeta_instancia,
         }
 
         for metrica in METRICAS:

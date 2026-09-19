@@ -54,13 +54,11 @@ def ejecutar():
         if slug.startswith("ins_"):
             slug = slug[4:]
         archivo_resultados = f"results/comparativa_{slug}.csv"
-        archivo_traza = f"results/traza_{slug}.csv"
 
         matriz, num_maq, num_job, cota_superior, _ = leer_instancia_taillard(archivo)
         print(f"\n==================== {tamano} ({archivo}) | UB conocido: {cota_superior} ====================")
 
         filas_resultado = []
-        filas_traza = []
 
         for algoritmo, usar_bl in ALGORITMOS:
             print(f"\n--- {algoritmo} ---")
@@ -81,8 +79,6 @@ def ejecutar():
                     f"{tiempo:.4f}", traza[-1][0],
                     "-".join(str(trabajo) for trabajo in mejor_sol),
                 ])
-                filas_traza.extend(
-                    [algoritmo, tamano, semilla, generacion, mk] for generacion, mk in traza)
 
                 print(f"[{contador:03d}/{total}] {tamano} {algoritmo} semilla {semilla:2d} -> Makespan {makespan} "
                       f"(RPD {rpd:5.2f}%) | hallado en gen {traza[-1][0]:3d} | {tiempo:6.2f}s")
@@ -96,13 +92,7 @@ def ejecutar():
             ])
             writer.writerows(filas_resultado)
 
-        with open(archivo_traza, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f, delimiter=";", lineterminator="\n")
-            writer.writerow(["Algoritmo", "Tamano_Problema", "Semilla", "Generacion", "Makespan"])
-            writer.writerows(filas_traza)
-
         print(f"\n[Guardado] {archivo_resultados}")
-        print(f"[Guardado] {archivo_traza}")
 
     print("\n" + "=" * 78)
     print(" EXPERIMENTACIÓN FINALIZADA")
