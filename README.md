@@ -188,8 +188,7 @@ Figuras en `results/graficos/` (generadas para cada algoritmo, `{metrica}_ag.png
 
 | Archivo | Qué muestra |
 |---|---|
-| `resumen_{algoritmo}.png` | Las cuatro métricas siguientes en una columna para el algoritmo correspondiente. |
-| `secuencia_mejor_solucion_{algoritmo}.png` | Trabajo asignado a cada posición en la mejor solución encontrada. |
+| `resumen_{algoritmo}.png` | Las tres métricas siguientes en una columna para el algoritmo correspondiente. |
 | `generacion_hallazgo_{algoritmo}.png` | En qué generación se halla cada mejora del makespan (promedio). |
 | `makespan_por_semilla_{algoritmo}.png` | Mejor makespan alcanzado por cada una de las 30 semillas. |
 | `tiempo_por_semilla_{algoritmo}.png` | Tiempo de proceso de cada semilla. |

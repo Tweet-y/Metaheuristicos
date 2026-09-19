@@ -119,20 +119,6 @@ def _configurar_xticks_semillas(eje, semillas):
 # Métricas por algoritmo
 # --------------------------------------------------------------------------
 
-def dibujar_secuencia(eje, algoritmo, datos):
-    """Trabajo asignado a cada posición, en la mejor solución del método."""
-    corridas = corridas_de(datos["resultados"], algoritmo)
-    if not corridas:
-        return None
-    mejor = min(corridas, key=lambda r: int(r["Makespan"]))
-    secuencia = [int(t) for t in mejor["Mejor_Secuencia"].split("-")]
-    marca = 26 if len(secuencia) <= 20 else (14 if len(secuencia) <= 50 else 7)
-    eje.scatter(range(len(secuencia)), secuencia, s=marca, c=COLOR[algoritmo],
-                marker=MARCA[algoritmo], edgecolors=SUPERFICIE, linewidths=0.8,
-                zorder=3)
-    return f"Cmax: {mejor['Makespan']}"
-
-
 def _curva_mejor_hasta_ahora(pares, generaciones):
     """Expande [(gen, makespan), ...] al mejor valor conocido en cada generación."""
     curva = []
@@ -265,10 +251,6 @@ Metrica = namedtuple(
     "Metrica", "nombre titulo fila ylabel xlabel dibujar en_resumen")
 
 METRICAS = [
-    Metrica("secuencia_mejor_solucion",
-            "Mejor solución encontrada: trabajo asignado a cada posición",
-            "Secuencia", "ID del trabajo", "Posición en la secuencia",
-            dibujar_secuencia, True),
     Metrica("generacion_hallazgo",
             "Convergencia: en qué generación se halla cada mejora del makespan",
             "Convergencia", "Makespan (promedio)", "Generación",
