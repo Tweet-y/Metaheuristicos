@@ -28,7 +28,8 @@ BL_MUESTRA = 1
 def ejecutar_evolutivo(tam_pobla, prob_c, prob_m, iteraciones, matriz, num_maq, num_job,
                        usar_bl=False, freq_bl=1, bl_muestra=BL_MUESTRA, sembrar_neh=True,
                        cota_superior=None, k_torneo=K_TORNEO, mostrar_progreso=True,
-                       paciencia_renovacion=None, frac_renovacion=0.20):
+                       paciencia_renovacion=None, frac_renovacion=0.20,
+                       reparar_renovados=True):
     """Ejecuta el ciclo evolutivo y devuelve (mejor_solucion, makespan, traza).
 
     `traza` es la lista de pares (generación, makespan) con cada mejora del mejor
@@ -96,10 +97,12 @@ def ejecutar_evolutivo(tam_pobla, prob_c, prob_m, iteraciones, matriz, num_maq, 
             gen_sin_mejora += 1
 
         if paciencia_renovacion is not None and gen_sin_mejora >= paciencia_renovacion:
+            reparador = (lambda ind: busqueda_local_insercion(ind, matriz, num_maq)[0]) if (usar_bl and reparar_renovados) else None
             poblacion, fitness = renovar_poblacion(
                 poblacion, fitness, num_job,
                 lambda ind: calcular_makespan(ind, matriz, num_maq),
                 frac_renovacion=frac_renovacion,
+                reparador=reparador,
             )
             gen_sin_mejora = 0
             if fitness[0] < mejor_makespan:

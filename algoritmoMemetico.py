@@ -56,13 +56,15 @@ ALGORITMO = "Memetico"
 
 def ejecutar_algoritmo_memetico(tam_pobla, prob_c, prob_m, iteraciones, matriz,
                                 num_maq, num_job, cota_superior=None, freq_bl=1,
-                                paciencia_renovacion=None, frac_renovacion=0.20):
+                                paciencia_renovacion=None, frac_renovacion=0.20,
+                                reparar_renovados=True):
     """Algoritmo Memético: el ciclo evolutivo con búsqueda local por inserción."""
     return ejecutar_evolutivo(tam_pobla, prob_c, prob_m, iteraciones, matriz,
                               num_maq, num_job, usar_bl=True, freq_bl=freq_bl,
                               cota_superior=cota_superior,
                               paciencia_renovacion=paciencia_renovacion,
-                              frac_renovacion=frac_renovacion)
+                              frac_renovacion=frac_renovacion,
+                              reparar_renovados=reparar_renovados)
 
 
 def main():

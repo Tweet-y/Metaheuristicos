@@ -279,10 +279,36 @@ def test_renovacion_se_activa_tras_estancamiento():
             usar_bl=False, paciencia_renovacion=10, frac_renovacion=0.20, mostrar_progreso=False
         )
         assert es_permutacion(sol, num_job)
-        assert len(activaciones) >= 1, "la renovación nunca se activó ante estancamiento"
+        assert len(activaciones) == 3, f"se esperaban 3 activaciones, hubo {len(activaciones)}"
     finally:
         ga_mod.renovar_poblacion = orig_ga_renovar
     print(f"  [OK] renovación: se activó {len(activaciones)} veces ante estancamiento en 35 gens")
+
+
+def test_renovacion_con_reparador():
+    """renovar_poblacion aplica el reparador a los mutantes del élite preservando invariantes."""
+    random.seed(10)
+    n_job = 10
+    tam = 20
+    pob = [random.sample(range(n_job), n_job) for _ in range(tam)]
+    fit = list(range(100, 100 + tam))
+    reparaciones = []
+
+    def mi_reparador(ind):
+        reparaciones.append(list(ind))
+        return list(reversed(ind))
+
+    def evaluador(ind):
+        return sum((i + 1) * job for i, job in enumerate(ind))
+
+    pob_ren, fit_ren = renovar_poblacion(
+        pob, fit, n_job, evaluador, frac_renovacion=0.20, reparador=mi_reparador
+    )
+    assert len(reparaciones) == 2, f"se esperaban 2 llamadas a reparador, hubo {len(reparaciones)}"
+    assert len(pob_ren) == tam and len(fit_ren) == tam
+    for ind in pob_ren:
+        assert es_permutacion(ind, n_job)
+    print("  [OK] renovación con reparador: aplica reparador a mutantes del élite e invariantes OK")
 
 
 if __name__ == "__main__":
@@ -301,6 +327,7 @@ if __name__ == "__main__":
         test_renovacion_conserva_elite_tamano_y_permutaciones,
         test_renovacion_protege_poblacion_unitaria,
         test_renovacion_se_activa_tras_estancamiento,
+        test_renovacion_con_reparador,
     ]
     for prueba in pruebas:
         print(f"\n{prueba.__name__}:")

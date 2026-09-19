@@ -144,10 +144,11 @@ def reemplazo_mu_lambda(padres, fitness_padres, hijos, fitness_hijos, sin_duplic
     return [list(individuo) for _, individuo in sobrevivientes], [f for f, _ in sobrevivientes]
 
 
-def renovar_poblacion(poblacion, fitness, num_job, evaluador, frac_renovacion=0.20):
+def renovar_poblacion(poblacion, fitness, num_job, evaluador, frac_renovacion=0.20, reparador=None):
     """Reemplaza los peores individuos tras estancamiento, preservando el élite.
 
     Genera mitad perturbaciones del élite y mitad soluciones aleatorias uniformes.
+    Si se pasa `reparador`, se aplica únicamente sobre los mutantes del élite.
     Inserta directamente en la población evaluando con `evaluador(individuo)`.
     Si la población tiene tamaño <= 1 o frac_renovacion <= 0, no modifica nada.
     Devuelve (poblacion, fitness) con el mismo tamaño y ordenados por fitness.
@@ -169,7 +170,10 @@ def renovar_poblacion(poblacion, fitness, num_job, evaluador, frac_renovacion=0.
     nuevos = []
     n_mutados = num_renovar // 2
     for _ in range(n_mutados):
-        nuevos.append(mutar_individuo(elite, 1.0))
+        mut = mutar_individuo(elite, 1.0)
+        if reparador is not None:
+            mut = reparador(mut)
+        nuevos.append(mut)
     for _ in range(num_renovar - n_mutados):
         ind = list(range(num_job))
         random.shuffle(ind)
