@@ -40,14 +40,12 @@ def ejecutar_evolutivo(tam_pobla, prob_c, prob_m, iteraciones, matriz, num_maq, 
     """
     poblacion = inicializar_poblacion(tam_pobla, num_job)
     if sembrar_neh:
-        if semillas_neh <= 1:
-            poblacion[0] = neh(matriz, num_maq, num_job)
-        else:
-            orden_base = orden_neh(matriz, num_maq, num_job)
-            poblacion[0] = neh(matriz, num_maq, num_job, orden=orden_base)
-            for i in range(1, min(semillas_neh, tam_pobla)):
-                orden_pert = mutar_individuo(orden_base, 1.0)
-                poblacion[i] = neh(matriz, num_maq, num_job, orden=orden_pert)
+        orden_base = orden_neh(matriz, num_maq, num_job)
+        poblacion[0] = neh(matriz, num_maq, num_job, orden=orden_base)
+        # Con semillas_neh=1 el bucle queda vacío y la siembra es la de siempre.
+        for i in range(1, min(semillas_neh, tam_pobla)):
+            orden_pert = mutar_individuo(orden_base, 1.0)
+            poblacion[i] = neh(matriz, num_maq, num_job, orden=orden_pert)
     fitness = evaluar_poblacion(poblacion, matriz, num_maq)
 
     idx_mejor = min(range(tam_pobla), key=lambda i: fitness[i])
