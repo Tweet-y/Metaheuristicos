@@ -17,15 +17,27 @@ import time
 from pfsp.ga import ejecutar_evolutivo
 from pfsp.instance import leer_instancia_taillard
 
+# (nombre, archivo, prob_mutacion). Las tres instancias más grandes usan 0.50:
+# dio mejores resultados que 0.20 en las pocas corridas que alcanzaron a compararse.
 INSTANCIAS = [
-    ("500x20",  "data/ins_500_20_00.txt"),
+    ("20x5",    "data/ins_20_5_00.txt",    0.20),
+    ("20x10",   "data/ins_20_10_00.txt",   0.20),
+    ("20x20",   "data/ins_20_20_00.txt",   0.20),
+    ("50x5",    "data/ins_50_5_00.txt",    0.20),
+    ("50x10",   "data/ins_50_10_00.txt",   0.20),
+    ("50x20",   "data/ins_50_20_00.txt",   0.20),
+    ("100x5",   "data/ins_100_5_00.txt",   0.20),
+    ("100x10",  "data/ins_100_10_00.txt",  0.20),
+    ("100x20",  "data/ins_100_20_00.txt",  0.20),
+    ("200x10",  "data/ins_200_10_00.txt",  0.50),
+    ("200x20",  "data/ins_200_20_00.txt",  0.50),
+    ("500x20",  "data/ins_500_20_00.txt",  0.50),
 ]
 
 ALGORITMOS = [("AG", False), ("Memetico", True)]
 
 TAM_POBLA = 60
 PROB_CRUCE = 0.85
-PROB_MUTA = 0.60
 ITERACIONES = 300
 SEMILLAS = list(range(1, 31))
 
@@ -36,9 +48,9 @@ def ejecutar():
 
     print("=" * 78)
     print(" BATERÍA EXPERIMENTAL: ALGORITMO GENÉTICO vs ALGORITMO MEMÉTICO")
-    print(f" Instancias:     {[nombre for nombre, _ in INSTANCIAS]}")
+    print(f" Instancias:     {[nombre for nombre, _, _ in INSTANCIAS]}")
     print(f" Población:      {TAM_POBLA} | Iteraciones: {ITERACIONES}")
-    print(f" Cruce:          {PROB_CRUCE} | Mutación: {PROB_MUTA}")
+    print(f" Cruce:          {PROB_CRUCE} | Mutación: por instancia")
     print(f" Semillas:       {SEMILLAS}")
     print(f" Total corridas: {total}")
     print("=" * 78)
@@ -46,14 +58,14 @@ def ejecutar():
     contador = 0
     inicio_global = time.perf_counter()
 
-    for tamano, archivo in INSTANCIAS:
+    for tamano, archivo, prob_muta in INSTANCIAS:
         slug = os.path.splitext(os.path.basename(archivo))[0]
         if slug.startswith("ins_"):
             slug = slug[4:]
         archivo_resultados = f"results/comparativa_{slug}.csv"
 
         matriz, num_maq, num_job, cota_superior, _ = leer_instancia_taillard(archivo)
-        print(f"\n==================== {tamano} ({archivo}) | UB conocido: {cota_superior} ====================")
+        print(f"\n==================== {tamano} ({archivo}) | UB conocido: {cota_superior} | Pm: {prob_muta} ====================")
 
         filas_resultado = []
 
@@ -65,14 +77,14 @@ def ejecutar():
 
                 inicio = time.perf_counter()
                 mejor_sol, makespan, traza = ejecutar_evolutivo(
-                    TAM_POBLA, PROB_CRUCE, PROB_MUTA, ITERACIONES, matriz,
+                    TAM_POBLA, PROB_CRUCE, prob_muta, ITERACIONES, matriz,
                     num_maq, num_job, usar_bl=usar_bl, mostrar_progreso=False)
                 tiempo = time.perf_counter() - inicio
 
                 rpd = (makespan - cota_superior) / cota_superior * 100
                 filas_resultado.append([
                     algoritmo, tamano, archivo, semilla, TAM_POBLA, PROB_CRUCE,
-                    PROB_MUTA, ITERACIONES, makespan, cota_superior, f"{rpd:.2f}",
+                    prob_muta, ITERACIONES, makespan, cota_superior, f"{rpd:.2f}",
                     f"{tiempo:.4f}", traza[-1][0],
                     "-".join(str(trabajo) for trabajo in mejor_sol),
                 ])

@@ -25,6 +25,11 @@ CARPETA_SALIDA = "results/graficos"
 ALGORITMOS = ["AG", "Memetico"]
 
 # Solo estas instancias llevan figuras al informe; del resto del barrido basta el CSV.
+# El criterio es espacio en el informe, no muestreo: son los dos extremos del rango
+# evaluado (20x5 la menor, 500x20 la mayor) más un caso intermedio. No es una
+# submuestra representativa y el artículo lo declara así en su Sección 4.3, porque
+# 20x5 y 100x5 son las instancias donde el Memético alcanza el UB más veces y 500x20
+# la de mayor sobrecosto. Las tablas del artículo sí cubren las doce.
 INSTANCIAS_GRAFICAS = {"20_5_00", "100_5_00", "500_20_00"}
 
 # El CSV guarda el identificador sin tilde; las figuras del informe la llevan.
