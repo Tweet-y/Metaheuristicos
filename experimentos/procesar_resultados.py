@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tabla resumen a partir de los CSV de la batería experimental.
 
-Uso: python procesar_resultados.py
+Uso: python -m experimentos.procesar_resultados
 """
 
 import csv
@@ -15,7 +15,7 @@ ALGORITMOS = ["AG", "Memetico"]
 def analizar():
     archivos = sorted(glob.glob("results/comparativa_*.csv"))
     if not archivos:
-        print("No se encontraron archivos results/comparativa_*.csv. Ejecuta primero: python ejecutar_comparativa.py")
+        print("No se encontraron archivos results/comparativa_*.csv. Ejecuta primero: python -m experimentos.ejecutar_comparativa")
         return
 
     ancho = 110

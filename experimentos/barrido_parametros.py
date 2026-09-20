@@ -9,7 +9,7 @@ tabla son comparables entre sí.
 No reemplaza a `ejecutar_comparativa.py`: aquel compara los dos algoritmos con
 los parámetros ya elegidos, este sirve para elegirlos.
 
-Uso: python barrido_parametros.py
+Uso: python -m experimentos.barrido_parametros
 """
 
 import csv

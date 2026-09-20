@@ -6,7 +6,7 @@ Por instancia deja dos archivos: uno con el resultado de cada corrida y otro con
 la traza de convergencia (en qué generación se halló cada mejora), que es lo que
 consumen `procesar_resultados.py` y `generar_graficos.py`.
 
-Uso: python ejecutar_comparativa.py
+Uso: python -m experimentos.ejecutar_comparativa
 """
 
 import csv

@@ -5,8 +5,8 @@ Cada métrica se dibuja con una función `dibujar_*` que recibe un eje ya creado
 y el algoritmo a graficar. Emite figuras individuales por algoritmo e instancia
 y una figura resumen en columna para cada algoritmo e instancia.
 
-Requiere haber corrido antes `python ejecutar_comparativa.py`.
-Uso: python generar_graficos.py
+Requiere haber corrido antes `python -m experimentos.ejecutar_comparativa`.
+Uso: python -m experimentos.generar_graficos
 """
 
 import csv
@@ -24,10 +24,8 @@ import matplotlib.transforms as transforms  # noqa: E402
 CARPETA_SALIDA = "results/graficos"
 ALGORITMOS = ["AG", "Memetico"]
 
-# Solo estas instancias llevan figuras al informe; del resto del barrido basta el
-# CSV. 20_5 y 500_20 las compila otro integrante del grupo, así que en esta máquina
-# normalmente solo sale 100_5.
-INSTANCIAS_GRAFICAS = {"20_5_00", "500_20_00", "100_5_00"}
+# Solo estas instancias llevan figuras al informe; del resto del barrido basta el CSV.
+INSTANCIAS_GRAFICAS = {"20_5_00", "100_5_00", "500_20_00"}
 
 # El CSV guarda el identificador sin tilde; las figuras del informe la llevan.
 NOMBRE = {"AG": "AG", "Memetico": "Memético"}
@@ -340,12 +338,14 @@ def figura_resumen(algoritmo, datos):
 def main():
     archivos = sorted(glob.glob("results/comparativa_*.csv"))
     if not archivos:
-        print("No se encontraron resultados en results/comparativa_*.csv. Ejecuta primero: python ejecutar_comparativa.py")
+        print("No se encontraron resultados en results/comparativa_*.csv. Ejecuta primero: python -m experimentos.ejecutar_comparativa")
         return
     print(f"Generando figuras en {CARPETA_SALIDA}/ ...")
     for ruta_comp in archivos:
         basename = os.path.basename(ruta_comp)
         slug = basename.replace("comparativa_", "").replace(".csv", "")
+        if slug not in INSTANCIAS_GRAFICAS:
+            continue
         ruta_traza = os.path.join(os.path.dirname(ruta_comp), f"traza_{slug}.csv")
 
         resultados = cargar(ruta_comp)

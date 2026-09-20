@@ -15,7 +15,7 @@ Los algoritmos no usan ninguna dependencia externa: corren con Python a secas.
 python3 algoritmoGenetico.py 1 data/ins_20_5_00.txt 60 0.85 0.20 300
 ```
 
-Solo `generar_graficos.py` necesita matplotlib:
+Solo `experimentos/generar_graficos.py` necesita matplotlib:
 
 ```bash
 python3 -m venv .venv
@@ -39,6 +39,11 @@ Metaheuristicos/
 │   ├── ga.py                        # Ciclo evolutivo común al AG y al Memético
 │   ├── cli.py                       # Validación de parámetros de entrada
 │   └── salida.py                    # Impresión de resultados y registro en CSV
+├── experimentos/                    # Scripts de la evaluación experimental
+│   ├── ejecutar_comparativa.py      # Batería experimental completa
+│   ├── barrido_parametros.py        # Barrido de parámetros (un factor a la vez)
+│   ├── procesar_resultados.py       # Tabla resumen en consola
+│   └── generar_graficos.py          # Figuras del informe
 ├── data/                            # Instancias de Taillard (.txt)
 ├── results/
 │   ├── comparativa_{slug}.csv       # Resultados por instancia (ej. 50_10_00)
@@ -47,10 +52,6 @@ Metaheuristicos/
 │   └── graficos/                    # Figuras del informe (.png)
 ├── algoritmoGenetico.py             # Programa del Algoritmo Genético
 ├── algoritmoMemetico.py             # Programa del Algoritmo Memético
-├── ejecutar_comparativa.py          # Batería experimental completa
-├── barrido_parametros.py            # Barrido de parámetros (un factor a la vez)
-├── procesar_resultados.py           # Tabla resumen en consola
-├── generar_graficos.py              # Figuras del informe
 ├── test_makespan.py                 # Chequeos de correctitud
 └── requirements.txt
 ```
@@ -114,18 +115,18 @@ Cuando se entrega un CSV de salida, también se escribe uno con el sufijo `_traz
 ### C. Batería experimental, tabla y figuras
 
 ```bash
-python ejecutar_comparativa.py    # 4 instancias x 30 semillas x 2 algoritmos
-python procesar_resultados.py     # tabla resumen en consola
-python generar_graficos.py        # figuras en results/graficos/
+python -m experimentos.ejecutar_comparativa    # instancias de INSTANCIAS x 30 semillas x 2 algoritmos
+python -m experimentos.procesar_resultados     # tabla resumen en consola
+python -m experimentos.generar_graficos        # figuras de 20x5, 100x5 y 500x20 en results/graficos/
 ```
 
 ### D. Barrido de parámetros
 
 ```bash
-python barrido_parametros.py       # ~6 minutos
+python -m experimentos.barrido_parametros       # ~6 minutos
 ```
 
-Varía un parámetro a la vez alrededor de la configuración base, dejando fijos los demás. Sirve para justificar los valores elegidos; `ejecutar_comparativa.py` los usa una vez ya elegidos.
+Varía un parámetro a la vez alrededor de la configuración base, dejando fijos los demás. Sirve para justificar los valores elegidos; `experimentos/ejecutar_comparativa.py` los usa una vez ya elegidos.
 
 ### E. Chequeos de correctitud
 
@@ -196,7 +197,7 @@ Las figuras van a `results/graficos/{slug}/`, una carpeta por instancia y un arc
 
 `distribucion_rpd_{algoritmo}.png` muestra el diagrama de cajas con las 30 semillas superpuestas. Permite observar tanto la dispersión como el número de semillas que empatan en cada valor de RPD respecto al UB.
 
-No se grafican todas las instancias del barrido: `generar_graficos.py` solo procesa las de `INSTANCIAS_GRAFICAS`, que son las que el informe necesita. Del resto queda el CSV y la fila en la tabla resumen.
+No se grafican todas las instancias del barrido: `experimentos/generar_graficos.py` solo procesa las de `INSTANCIAS_GRAFICAS`, que son las que el informe necesita. Del resto queda el CSV y la fila en la tabla resumen.
 
 ### 6.1. Justificación de los parámetros
 
