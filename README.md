@@ -48,7 +48,6 @@ Metaheuristicos/
 ├── data/                            # Instancias de Taillard (.txt)
 ├── results/
 │   ├── comparativa_{slug}.csv       # Resultados por instancia (ej. 50_10_00)
-│   ├── traza_{slug}.csv             # Generación en que se halló cada mejora
 │   ├── barrido_parametros.csv       # Barrido para justificar los parámetros
 │   └── graficos/                    # Figuras del informe (.png)
 ├── algoritmoGenetico.py             # Programa del Algoritmo Genético
