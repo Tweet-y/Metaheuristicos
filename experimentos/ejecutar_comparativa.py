@@ -2,9 +2,9 @@
 """Batería experimental comparando el Algoritmo Genético con el Memético.
 
 Corre los dos algoritmos sobre cada instancia de `INSTANCIAS` y varias semillas.
-Por instancia deja dos archivos: uno con el resultado de cada corrida y otro con
-la traza de convergencia (en qué generación se halló cada mejora), que es lo que
-consumen `procesar_resultados.py` y `generar_graficos.py`.
+Por cada instancia deja un archivo con el resultado de cada corrida (incluyendo
+la generación en que se halló la mejor solución), que es lo que consumen
+`procesar_resultados.py` y `generar_graficos.py`.
 
 Uso: python -m experimentos.ejecutar_comparativa
 """

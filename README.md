@@ -49,7 +49,7 @@ Metaheuristicos/
 ├── results/
 │   ├── comparativa_{slug}.csv       # Resultados por instancia (ej. 50_10_00)
 │   ├── barrido_parametros.csv       # Barrido para justificar los parámetros
-│   └── graficos/                    # Figuras del informe (.png)
+│   └── graficos/                    # Figuras del informe por tamaño (ej. 20x5/, 100x5/)
 ├── algoritmoGenetico.py             # Programa del Algoritmo Genético
 ├── algoritmoMemetico.py             # Programa del Algoritmo Memético
 ├── test_makespan.py                 # Chequeos de correctitud
@@ -189,12 +189,12 @@ A eso se suma que el presupuesto es fijo —60 individuos, 300 generaciones— m
 | Mediana (50x10) | AG        | 3025 | 3091  | 2.18%   | 3.24% ± 0.28 | 1.95 s |
 | Mediana (50x10) | Memético  | 3025 | 3025  | 0.00%   | 0.65% ± 0.39 | 6.54 s |
 
-Las figuras van a `results/graficos/{slug}/`, una carpeta por instancia y un archivo `{metrica}_{algoritmo}.png` por cada una:
+Las figuras van a `results/graficos/{tamano}/` (ej. `20x5/`), una carpeta por instancia y un archivo `{metrica}_{algoritmo}.png` por cada una:
 
 | Archivo                                | Qué muestra                                                                                |
 | -------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `resumen_{algoritmo}.png`              | Las tres métricas siguientes en una columna para el algoritmo e instancia correspondiente. |
-| `generacion_hallazgo_{algoritmo}.png`  | En qué generación se halla cada mejora del makespan (promedio).                            |
+| `generacion_hallazgo_{algoritmo}.png`  | Generación en que se halló el mejor makespan por cada semilla (con promedio).              |
 | `makespan_por_semilla_{algoritmo}.png` | Mejor makespan alcanzado por cada una de las 30 semillas.                                  |
 | `tiempo_por_semilla_{algoritmo}.png`   | Tiempo de proceso de cada semilla.                                                         |
 | `distribucion_rpd_{algoritmo}.png`     | RPD con diagrama de caja y las 30 observaciones superpuestas.                              |
